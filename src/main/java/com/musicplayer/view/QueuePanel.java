@@ -301,20 +301,56 @@ public class QueuePanel extends JPanel {
 
     private void removeSelected() {
         int selectedRow = queueTable.getSelectedRow();
-        if (selectedRow != -1) {
-            List<Track> queue = controller.getQueue();
-            if (selectedRow < queue.size()) {
-                queue.remove(selectedRow);
-                System.out.println("🗑️ Removed track at index: " + selectedRow);
+        if (selectedRow == -1) {
+            System.out.println("⚠️ No track selected");
+            return;
+        }
+
+        List<Track> queue = controller.getQueue();
+        if (selectedRow >= queue.size()) {
+            System.out.println("⚠️ Invalid selection: " + selectedRow + " (queue size: " + queue.size() + ")");
+            return;
+        }
+
+        Track track = queue.get(selectedRow);
+
+        // Confirm removal
+        int result = JOptionPane.showConfirmDialog(this,
+            "Remove \"" + track.getTitle() + "\" from queue?",
+            "Remove from Queue",
+            JOptionPane.YES_NO_OPTION);
+
+        if (result == JOptionPane.YES_OPTION) {
+            System.out.println("🔍 Removing track at index: " + selectedRow + " - " + track.getTitle());
+
+            // Remove from queue
+            controller.removeFromQueue(selectedRow);
+
+            // Immediate UI update (optimistic)
+            tableModel.removeRow(selectedRow);
+
+            // Update info label
+            queueInfoLabel.setText((queue.size() - 1) + " track" + 
+                                  ((queue.size() - 1) != 1 ? "s" : "") + " in queue");
+
+            // Refresh to sync with actual queue
+            SwingUtilities.invokeLater(() -> {
                 refreshQueue();
-            }
+            });
+
+            System.out.println("✅ Track removed from queue UI");
         }
     }
 
     private void clearQueue() {
+        List<Track> queue = controller.getQueue();
+        if (queue.isEmpty()) {
+            return;
+        }
+
         int result = JOptionPane.showConfirmDialog(
             this,
-            "Are you sure you want to clear the entire queue?",
+            "Are you sure you want to clear the entire queue? (" + queue.size() + " tracks)",
             "Clear Queue",
             JOptionPane.YES_NO_OPTION,
             JOptionPane.WARNING_MESSAGE
@@ -322,7 +358,16 @@ public class QueuePanel extends JPanel {
 
         if (result == JOptionPane.YES_OPTION) {
             controller.clearQueue();
-            refreshQueue();
+
+            // Immediate UI clear
+            tableModel.setRowCount(0);
+            queueInfoLabel.setText("0 tracks in queue");
+
+            // Sync with actual queue
+            SwingUtilities.invokeLater(() -> {
+                refreshQueue();
+            });
+
             System.out.println("🗑️ Queue cleared");
         }
     }

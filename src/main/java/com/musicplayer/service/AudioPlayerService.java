@@ -1,9 +1,11 @@
 package com.musicplayer.service;
 
 import com.musicplayer.model.Track;
+import uk.co.caprica.vlcj.factory.MediaPlayerFactory;
 import uk.co.caprica.vlcj.player.base.MediaPlayer;
 import uk.co.caprica.vlcj.player.base.MediaPlayerEventAdapter;
-import uk.co.caprica.vlcj.player.component.AudioPlayerComponent;
+import uk.co.caprica.vlcj.player.embedded.EmbeddedMediaPlayer;
+
 
 
 import javax.swing.*;
@@ -13,7 +15,8 @@ import java.util.List;
 // Service utk play audio
 public class AudioPlayerService {
 
-    private AudioPlayerComponent audioPlayer;
+    private MediaPlayerFactory mediaPlayerFactory;
+    private EmbeddedMediaPlayer mediaPlayer;
     private YouTubeMusicService youtubeService;
 
     private Track currentTrack;
@@ -27,10 +30,10 @@ public class AudioPlayerService {
     private volatile boolean isProcessingNext = false;
     private volatile int retryCount = 0;
     private static final int MAX_RETRIES = 2; // Maximum retry attempts
-    
+    private uk.co.caprica.vlcj.player.base.Equalizer equalizer; // VLC Equalizer object
     private boolean equalizerEnabled = false;
-    private float preamp = 0.0f; // -20.0 to +20.0
-    private float[] bandAmplitudes = new float[10]; // 10 frequency bands
+    private float preamp = 0.0f;
+    private float[] bandAmplitudes = new float[10];
     
     private static final String[] BAND_FREQUENCIES = {
         "60 Hz", "170 Hz", "310 Hz", "600 Hz", "1 kHz",
@@ -43,8 +46,7 @@ public class AudioPlayerService {
             System.out.println("🔍 Checking VLC installation...");
 
             // Try native discovery
-            uk.co.caprica.vlcj.factory.discovery.NativeDiscovery discovery =
-                    new uk.co.caprica.vlcj.factory.discovery.NativeDiscovery();
+            uk.co.caprica.vlcj.factory.discovery.NativeDiscovery discovery = new uk.co.caprica.vlcj.factory.discovery.NativeDiscovery();
             boolean vlcFound = discovery.discover();
 
             if (!vlcFound) {
@@ -54,8 +56,9 @@ public class AudioPlayerService {
                 System.out.println("✅ VLC found");
             }
 
-            this.audioPlayer = new AudioPlayerComponent();
-            System.out.println("✅ Audio player component initialized");
+            this.mediaPlayerFactory = new MediaPlayerFactory();
+            this.mediaPlayer = mediaPlayerFactory.mediaPlayers().newEmbeddedMediaPlayer();
+            System.out.println("✅ Media player initialized");
 
         } catch (Exception e) {
             System.err.println("❌ Failed to initialize audio player: " + e.getMessage());
@@ -76,21 +79,48 @@ public class AudioPlayerService {
     
     // Equalizer
     private void initializeEqualizer() {
-        for (int i = 0; i < bandAmplitudes.length; i++) {
-            bandAmplitudes[i] = 0.0f;
+        try {
+            // Create equalizer using factory
+            equalizer = mediaPlayerFactory.equalizer().newEqualizer();
+
+            if (equalizer != null) {
+                // Initialize all bands to 0
+                int bandCount = equalizer.bandCount();
+                System.out.println("✅ Equalizer created with " + bandCount + " bands");
+
+                for (int i = 0; i < Math.min(10, bandCount); i++) {
+                    bandAmplitudes[i] = 0.0f;
+                    equalizer.setAmp(i, 0.0f);
+                    System.out.println("   Band " + i + ": " + " Hz");
+                }
+
+                preamp = 0.0f;
+                equalizer.setPreamp(0.0f);
+
+                System.out.println("✅ Equalizer initialized");
+            } else {
+                System.err.println("⚠️ Could not create equalizer");
+            }
+        } catch (Exception e) {
+            System.err.println("❌ Equalizer init error: " + e.getMessage());
+            e.printStackTrace();
         }
-        preamp = 0.0f;
-        System.out.println("🎛️ Equalizer initialized (Flat preset)");
     }
     
     public void setEqualizerEnabled(boolean enabled) {
         this.equalizerEnabled = enabled;
 
+        if (equalizer == null) {
+            System.err.println("⚠️ Equalizer not initialized");
+            return;
+        }
+
         if (enabled) {
             applyEqualizerSettings();
-            System.out.println("✅ Equalizer enabled");
+            System.out.println("✅ Equalizer ENABLED");
         } else {
-            System.out.println("❌ Equalizer disabled");
+            mediaPlayer.audio().setEqualizer(null);
+            System.out.println("❌ Equalizer DISABLED");
         }
     }
     
@@ -156,24 +186,26 @@ public class AudioPlayerService {
     }
 
     private void applyEqualizerSettings() {
-        if (!equalizerEnabled) {
+        if (!equalizerEnabled || equalizer == null) {
             return;
         }
 
         try {
-            StringBuilder eqString = new StringBuilder();
-            eqString.append(String.format("%.1f", preamp));
+            // Set preamp
+            equalizer.setPreamp(preamp);
+            System.out.println("🎚️ Setting preamp: " + preamp + " dB");
 
-            for (int i = 0; i < bandAmplitudes.length; i++) {
-                eqString.append(":");
-                eqString.append(String.format("%.1f", bandAmplitudes[i]));
+            // Set all bands
+            int maxBands = Math.min(bandAmplitudes.length, equalizer.bandCount());
+            for (int i = 0; i < maxBands; i++) {
+                equalizer.setAmp(i, bandAmplitudes[i]);
+                System.out.println("   Band " + i + " (" + BAND_FREQUENCIES[i] + "): " + bandAmplitudes[i] + " dB");
             }
-
-            System.out.println("🎛️ Equalizer string: " + eqString.toString());
-            System.out.println("✅ Equalizer settings stored (will apply on playback)");
-
+            
+            mediaPlayer.audio().setEqualizer(equalizer);
+            System.out.println("✅ Equalizer settings applied");
         } catch (Exception e) {
-            System.err.println("⚠️ Failed to apply equalizer: " + e.getMessage());
+            System.err.println("❌ Failed to apply equalizer: " + e.getMessage());
             e.printStackTrace();
         }
     }
@@ -241,9 +273,31 @@ public class AudioPlayerService {
     public String[] getBandFrequencies() {
         return BAND_FREQUENCIES.clone();
     }
+    
+    public void debugEqualizer() {
+        System.out.println("\n🔍 ===== EQUALIZER DEBUG =====");
+        System.out.println("Enabled: " + equalizerEnabled);
+        System.out.println("Equalizer object: " + (equalizer != null ? "EXISTS" : "NULL"));
+
+        if (equalizer != null) {
+            System.out.println("Preamp: " + equalizer.preamp() + " dB");
+            System.out.println("Band count: " + equalizer.bandCount());
+
+            for (int i = 0; i < Math.min(10, equalizer.bandCount()); i++) {
+                System.out.println("  Band " + i + " (" + BAND_FREQUENCIES[i] + "): " + 
+                                 equalizer.amp(i) + " dB (stored: " + bandAmplitudes[i] + " dB)");
+            }
+
+            // Check if equalizer is applied to player
+            uk.co.caprica.vlcj.player.base.Equalizer currentEq = 
+                mediaPlayer.audio().equalizer();
+            System.out.println("Applied to player: " + (currentEq != null ? "YES" : "NO"));
+        }
+        System.out.println("===========================\n");
+    }
 
     private void setupPlayerListeners() {
-        audioPlayer.mediaPlayer().events().addMediaPlayerEventListener(new MediaPlayerEventAdapter() {
+        mediaPlayer.events().addMediaPlayerEventListener(new MediaPlayerEventAdapter() {
             @Override
             public void playing(MediaPlayer mediaPlayer) {
                 isPlaying = true;
@@ -325,7 +379,7 @@ public class AudioPlayerService {
                 String newUrl = youtubeService.getStreamUrl(currentTrack.getYoutubeId());
                 if (newUrl != null) {
                     SwingUtilities.invokeLater(() -> {
-                        audioPlayer.mediaPlayer().media().play(newUrl);
+                        mediaPlayer.media().play(newUrl);
                     });
                 } else {
                     // Skip to next if refresh fails
@@ -350,7 +404,7 @@ public class AudioPlayerService {
 
         // Stop current playback (non-blocking)
         if (isPlaying) {
-            audioPlayer.mediaPlayer().controls().stop();
+            mediaPlayer.controls().stop();
         }
 
         currentTrack = track;
@@ -370,11 +424,25 @@ public class AudioPlayerService {
                     SwingUtilities.invokeLater(() -> {
                         try {
                             System.out.println("▶️ Starting playback...");
-                            boolean success = audioPlayer.mediaPlayer().media().play(streamUrl);
+                            boolean success = mediaPlayer.media().play(streamUrl);
 
                             if (success) {
                                 System.out.println("✅ Playing: " + track.getArtist() + " - " + track.getTitle());
                                 retryCount = 0; // Reset on success
+                                Timer equalizerTimer = new Timer(500, e -> {
+                                    if (equalizerEnabled && equalizer != null) {
+                                        try {
+                                            mediaPlayer.audio().setEqualizer(equalizer); // ✅ Fixed - void method
+                                            System.out.println("🎛️ Equalizer reapplied to new track");
+                                        } catch (Exception ex) {
+                                            System.err.println("⚠️ Failed to reapply equalizer: " + ex.getMessage());
+                                        }
+                                    }
+                                });
+                                equalizerTimer.setRepeats(false);
+                                equalizerTimer.start();
+                                equalizerTimer.setRepeats(false);
+                                equalizerTimer.start();
                             } else {
                                 System.err.println("❌ Failed to start playback (play() returned false)");
                                 notifyError("Failed to start playback");
@@ -423,16 +491,16 @@ public class AudioPlayerService {
         if (currentTrack == null && !queue.isEmpty()) {
             playTrack(queue.get(0));
         } else {
-            audioPlayer.mediaPlayer().controls().play();
+            mediaPlayer.controls().play();
         }
     }
 
     public void pause() {
-        audioPlayer.mediaPlayer().controls().pause();
+        mediaPlayer.controls().pause();
     }
 
     public void stop() {
-        audioPlayer.mediaPlayer().controls().stop();
+        mediaPlayer.controls().stop();
         currentTrack = null;
         SwingUtilities.invokeLater(() -> notifyTrackChanged(null));
     }
@@ -481,7 +549,7 @@ public class AudioPlayerService {
     }
 
     public void seekTo(long seconds) {
-        audioPlayer.mediaPlayer().controls().setTime(seconds * 1000);
+        mediaPlayer.controls().setTime(seconds * 1000);
     }
     
     public int getCurrentIndex() {
@@ -490,19 +558,19 @@ public class AudioPlayerService {
 
     public void setVolume(int volume) {
         int normalizedVolume = Math.max(0, Math.min(100, volume));
-        audioPlayer.mediaPlayer().audio().setVolume(normalizedVolume);
+        mediaPlayer.audio().setVolume(normalizedVolume);
     }
 
     public int getVolume() {
-        return audioPlayer.mediaPlayer().audio().volume();
+        return mediaPlayer.audio().volume();
     }
 
     public long getCurrentTime() {
-        return audioPlayer.mediaPlayer().status().time() / 1000;
+        return mediaPlayer.status().time() / 1000;
     }
 
     public long getDuration() {
-        return audioPlayer.mediaPlayer().status().length() / 1000;
+        return mediaPlayer.status().length() / 1000;
     }
 
     public boolean isPlaying() {
@@ -573,26 +641,31 @@ public class AudioPlayerService {
     
     public void removeFromQueue(int index) {
         if (index < 0 || index >= queue.size()) {
+            System.out.println("⚠️ Invalid index: " + index + " (queue size: " + queue.size() + ")");
             return;
         }
 
+        Track removedTrack = queue.get(index);
         queue.remove(index);
 
         // Adjust current index if needed
         if (index < currentIndex) {
+            // Track before current was removed
             currentIndex--;
         } else if (index == currentIndex) {
-            // Current track was removed - stop or play next
+            // Current track was removed
             if (queue.isEmpty()) {
                 stop();
+                currentIndex = -1;
+            } else {
+                // Play next track (which is now at same index)
+                if (currentIndex >= queue.size()) {
+                    currentIndex = queue.size() - 1;
+                }
             }
-            // If we want auto-play next after removal:
-            // else if (currentIndex < queue.size()) {
-            //     playTrack(queue.get(currentIndex));
-            // }
         }
 
-        System.out.println("🗑️ Removed track from queue at index: " + index);
+        System.out.println("✅ Removed from queue: " + removedTrack.getTitle() + " (index: " + index + ", new queue size: " + queue.size() + ", current index: " + currentIndex + ")");
     }
 
     public List<Track> getQueue() {
@@ -647,12 +720,14 @@ public class AudioPlayerService {
         }
     }
 
-  // Safe shutdown biar ga error
+    // Safe shutdown biar ga error
     public void release() {
         try {
-            if (audioPlayer != null) {
-                audioPlayer.mediaPlayer().controls().stop();
-                audioPlayer.release();
+            if (mediaPlayer != null) {
+                mediaPlayer.controls().stop();
+                mediaPlayer.release();
+            } if (mediaPlayerFactory != null) {
+                mediaPlayerFactory.release();
             }
         } catch (Exception e) {
             System.err.println("Error releasing player: " + e.getMessage());

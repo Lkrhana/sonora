@@ -301,6 +301,10 @@ public class MusicPlayerController {
     public boolean isRepeatEnabled() {
         return audioPlayerService.isRepeat();
     }
+    
+    public AudioPlayerService.RepeatMode getRepeatMode() {
+        return audioPlayerService.getRepeatMode();
+    }
 
     public List<Track> getAllTracks() {
         try {

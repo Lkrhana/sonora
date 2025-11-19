@@ -265,10 +265,24 @@ public class NowPlayingPanel extends JPanel {
     }
 
     private void updateRepeatButton() {
-        if (controller.isRepeatEnabled()) {
-            repeatButton.setForeground(new Color(100, 180, 255));
-        } else {
-            repeatButton.setForeground(Color.WHITE);
+        AudioPlayerService.RepeatMode mode = controller.getRepeatMode();
+
+        switch (mode) {
+            case OFF:
+                repeatButton.setIcon(IconLoader.loadButtonIcon(IconLoader.Icons.REPEAT));
+                repeatButton.setForeground(Color.WHITE);
+                repeatButton.setToolTipText("Repeat: Off");
+                break;
+            case ONE:
+                repeatButton.setIcon(IconLoader.loadButtonIcon(IconLoader.Icons.REPEAT_ONE));
+                repeatButton.setForeground(new Color(100, 180, 255));
+                repeatButton.setToolTipText("Repeat: One");
+                break;
+            case ALL:
+                repeatButton.setIcon(IconLoader.loadButtonIcon(IconLoader.Icons.REPEAT_ON));
+                repeatButton.setForeground(new Color(100, 180, 255));
+                repeatButton.setToolTipText("Repeat: All");
+                break;
         }
     }
 }

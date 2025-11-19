@@ -11,19 +11,22 @@ import uk.co.caprica.vlcj.player.embedded.EmbeddedMediaPlayer;
 import javax.swing.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 // Service utk play audio
 public class AudioPlayerService {
-
+    
+    public enum RepeatMode {OFF, ONE, ALL}
     private MediaPlayerFactory mediaPlayerFactory;
     private EmbeddedMediaPlayer mediaPlayer;
     private YouTubeMusicService youtubeService;
 
     private Track currentTrack;
     private List<Track> queue;
+    private List<Track> originalQueue;
     private int currentIndex;
     private boolean isPlaying;
-    private boolean isRepeat;
+    private RepeatMode repeatMode;
     private boolean isShuffle;
 
     private List<PlayerStateListener> listeners;
@@ -70,6 +73,8 @@ public class AudioPlayerService {
         this.queue = new ArrayList<>();
         this.currentIndex = -1;
         this.isPlaying = false;
+        this.repeatMode = RepeatMode.OFF;
+        this.isShuffle = false;
         this.listeners = new ArrayList<>();
         
         initializeEqualizer();
@@ -318,13 +323,12 @@ public class AudioPlayerService {
 
             @Override
             public void finished(MediaPlayer mediaPlayer) {
-                // CRITICAL FIX: Run in background thread to prevent freeze
                 if (!isProcessingNext) {
                     isProcessingNext = true;
                     new Thread(() -> {
                         try {
                             Thread.sleep(500); // Small delay
-                            playNext();
+                            handleTrackFinished();
                         } catch (InterruptedException e) {
                             Thread.currentThread().interrupt();
                         } finally {
@@ -371,6 +375,15 @@ public class AudioPlayerService {
                 }
             }
         });
+    }
+    
+    private void handleTrackFinished() {
+        if (repeatMode == RepeatMode.ONE) {
+            System.out.println("🔁 Repeat ONE: Replaying current track");
+            playTrack(currentTrack);
+        } else {
+            playNext();
+        }
     }
 
     private void refreshStreamAndRetry() {
@@ -515,20 +528,26 @@ public class AudioPlayerService {
 
     public void playNext() {
         if (queue.isEmpty()) {
+            System.out.println("⚠️ Queue is empty");
             return;
         }
 
         if (isShuffle) {
-            currentIndex = (int) (Math.random() * queue.size());
+            Random random = new Random();
+            int newIndex = random.nextInt(queue.size());
+            currentIndex = newIndex;
+            System.out.println("🔀 Shuffle: Playing random track at index " + currentIndex);
         } else {
             currentIndex++;
-            if (currentIndex >= queue.size()) {
-                if (isRepeat) {
-                    currentIndex = 0;
-                } else {
-                    stop();
-                    return;
-                }
+            if (repeatMode == RepeatMode.ALL) {
+                // Repeat all: go back to first track
+                currentIndex = 0;
+                System.out.println("🔁 Repeat ALL: Going back to first track");
+            } else {
+                // No repeat: stop playback
+                System.out.println("⏹️ End of queue, stopping playback");
+                stop();
+                return;
             }
         }
 
@@ -542,7 +561,13 @@ public class AudioPlayerService {
 
         currentIndex--;
         if (currentIndex < 0) {
-            currentIndex = queue.size() - 1;
+            if (repeatMode == RepeatMode.ALL) {
+                currentIndex = queue.size() - 1;
+                System.out.println("🔁 Repeat ALL: Wrapping to last track");
+            } else {
+                currentIndex = 0;
+                System.out.println("⏮️ Already at first track");
+            }
         }
 
         playTrack(queue.get(currentIndex));
@@ -580,17 +605,32 @@ public class AudioPlayerService {
     public Track getCurrentTrack() {
         return currentTrack;
     }
+    
+    public RepeatMode getRepeatMode() {
+        return repeatMode;
+    }
 
     public void setQueueAndPlay(List<Track> tracks, int startIndex) {
-        this.queue = new ArrayList<>(tracks);
-        this.currentIndex = startIndex;
-        if (!queue.isEmpty() && startIndex >= 0 && startIndex < queue.size()) {
-            playTrack(queue.get(startIndex));
+        this.originalQueue = new ArrayList<>(tracks);
+        if (isShuffle) {
+            this.queue = new ArrayList<>(tracks);
+            shuffleQueue();
+            // Find new index of the track that was at startIndex
+            Track targetTrack = originalQueue.get(startIndex);
+            this.currentIndex = queue.indexOf(targetTrack);
+        } else {
+            this.queue = new ArrayList<>(tracks);
+            this.currentIndex = startIndex;
+        }
+        
+        if (!queue.isEmpty() && currentIndex >= 0 && currentIndex < queue.size()) {
+            playTrack(queue.get(currentIndex));
         }
     }
 
     public void addToQueue(Track track) {
         queue.add(track);
+        originalQueue.add(track);
         if (queue.size() == 1) {
             currentIndex = 0;
             playTrack(track);
@@ -636,6 +676,7 @@ public class AudioPlayerService {
 
     public void clearQueue() {
         queue.clear();
+        originalQueue.clear();
         currentIndex = -1;
     }
     
@@ -647,6 +688,8 @@ public class AudioPlayerService {
 
         Track removedTrack = queue.get(index);
         queue.remove(index);
+        
+        originalQueue.remove(removedTrack);
 
         // Adjust current index if needed
         if (index < currentIndex) {
@@ -673,15 +716,86 @@ public class AudioPlayerService {
     }
 
     public void toggleRepeat() {
-        isRepeat = !isRepeat;
+        switch (repeatMode) {
+            case OFF:
+                repeatMode = RepeatMode.ONE;
+                System.out.println("🔁 Repeat mode: ONE");
+                break;
+            case ONE:
+                repeatMode = RepeatMode.ALL;
+                System.out.println("🔁 Repeat mode: ALL");
+                break;
+            case ALL:
+                repeatMode = RepeatMode.OFF;
+                System.out.println("🔁 Repeat mode: OFF");
+                break;
+        }
     }
-
+    
     public void toggleShuffle() {
         isShuffle = !isShuffle;
+        
+        if (isShuffle) {
+            // Shuffle enabled: save current track and shuffle queue
+            System.out.println("🔀 Shuffle ENABLED");
+            
+            if (!queue.isEmpty()) {
+                Track currentlyPlaying = currentTrack;
+                
+                // Shuffle the queue
+                shuffleQueue();
+                
+                // Find new index of currently playing track
+                if (currentlyPlaying != null) {
+                    currentIndex = queue.indexOf(currentlyPlaying);
+                    if (currentIndex == -1) {
+                        currentIndex = 0;
+                    }
+                }
+            }
+        } else {
+            // Shuffle disabled: restore original order
+            System.out.println("🔀 Shuffle DISABLED - Restoring original order");
+            
+            if (!originalQueue.isEmpty()) {
+                Track currentlyPlaying = currentTrack;
+                
+                // Restore original queue
+                queue = new ArrayList<>(originalQueue);
+                
+                // Find index of currently playing track in original queue
+                if (currentlyPlaying != null) {
+                    currentIndex = queue.indexOf(currentlyPlaying);
+                    if (currentIndex == -1) {
+                        currentIndex = 0;
+                    }
+                }
+            }
+        }
+    }
+    
+    private void shuffleQueue() {
+        if (queue.size() <= 1) {
+            return;
+        }
+        
+        Random random = new Random();
+        
+        // Fisher-Yates shuffle algorithm
+        for (int i = queue.size() - 1; i > 0; i--) {
+            int j = random.nextInt(i + 1);
+            
+            // Swap queue[i] and queue[j]
+            Track temp = queue.get(i);
+            queue.set(i, queue.get(j));
+            queue.set(j, temp);
+        }
+        
+        System.out.println("🔀 Queue shuffled using Fisher-Yates algorithm");
     }
 
     public boolean isRepeat() {
-        return isRepeat;
+        return repeatMode != RepeatMode.OFF;
     }
 
     public boolean isShuffle() {

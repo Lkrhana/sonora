@@ -2,10 +2,11 @@ package com.musicplayer.controller;
 
 import com.musicplayer.model.Recommendation;
 import com.musicplayer.model.Track;
+import com.musicplayer.repository.AnalyticsDAO;
 import com.musicplayer.repository.DatabaseManager;
 import com.musicplayer.service.*;
 import com.musicplayer.view.NowPlayingPanel;
-
+import com.musicplayer.repository.AnalyticsDAO;
 import java.io.File;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -21,7 +22,7 @@ public class MusicPlayerController {
     private RecommendationService recommendationService;
     private AudioPlayerService audioPlayerService;
     private MetadataEnrichmentService enrichmentService;
-
+    private AnalyticsDAO analyticsDAO;
     private NowPlayingPanel nowPlayingPanel;
     private File tempRecordingFile;
 
@@ -511,6 +512,10 @@ public class MusicPlayerController {
             setQueueAndPlay(tracks, trackIndex);
             System.out.println("▶️ Playing from playlist: " + playlist.getName() + " (track " + (trackIndex + 1) + ")");
         }
+    }
+    
+    public AnalyticsDAO getAnalyticsDAO() {
+        return analyticsDAO;
     }
 
     public void shutdown() {

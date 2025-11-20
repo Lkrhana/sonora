@@ -20,6 +20,7 @@ public class MainFrame extends JFrame {
     private FingerprintPanel fingerprintPanel;
     private EqualizerPanel equalizerPanel;
     private PlaylistPanel playlistPanel;
+    private AnalyticsPanel analyticsPanel;
 
     public MainFrame() {
         initializeComponents();
@@ -47,6 +48,7 @@ public class MainFrame extends JFrame {
         equalizerPanel = new EqualizerPanel(controller);
         playlistPanel = new PlaylistPanel(controller);
         playlistPanel.setMainFrame(this);
+        analyticsPanel = new AnalyticsPanel(controller);
 
         // Set controller references
         controller.setNowPlayingPanel(nowPlayingPanel);
@@ -70,6 +72,7 @@ public class MainFrame extends JFrame {
         contentPanel.add(fingerprintPanel, "Fingerprint");
         contentPanel.add(equalizerPanel, "Equalizer");
         contentPanel.add(playlistPanel, "Playlists");
+        contentPanel.add(analyticsPanel, "Analytics");
         add(contentPanel, BorderLayout.CENTER);
 
         // Player controls at bottom
@@ -105,6 +108,7 @@ public class MainFrame extends JFrame {
         addNavButton(sidebar, "Playlists", "Playlists", IconLoader.Icons.PLAYLISTS);
         addNavButton(sidebar, "Identify Song", "Fingerprint", IconLoader.Icons.FINGERPRINT);
         addNavButton(sidebar, "Equalizer", "Equalizer", IconLoader.Icons.EQUALIZER);
+        addNavButton(sidebar, "Analytics", "Analytics", IconLoader.Icons.HOME);
 
         return sidebar;
     }

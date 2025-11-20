@@ -1,54 +1,67 @@
 package com.musicplayer.repository;
 
-import java.sql.Date;
 import java.sql.*;
 import java.util.*;
 
 public class AnalyticsDAO {
     
-    private DatabaseManager dbManager;
+    private AnalyticsDatabaseManager dbManager;
     private Connection connection;
     
     public AnalyticsDAO() {
-        this.dbManager = DatabaseManager.getInstance();
-        // Ambil connection dari DatabaseManager menggunakan reflection atau direct access
-        try {
-            // Get connection field using reflection karena private
-            java.lang.reflect.Field connField = DatabaseManager.class.getDeclaredField("connection");
-            connField.setAccessible(true);
-            this.connection = (Connection) connField.get(dbManager);
-        } catch (Exception e) {
-            System.err.println("❌ Error accessing connection: " + e.getMessage());
+        this.dbManager = AnalyticsDatabaseManager.getInstance();
+        this.connection = dbManager.getConnection();
+        System.out.println("✅ AnalyticsDAO initialized with SQLite");
+    }
+    
+    /**
+     * Record a track play
+     */
+    public void recordPlay(String trackId, String title, String artist, String genre, int duration) {
+        String sql = "INSERT INTO play_history (track_id, track_title, artist, genre, duration) VALUES (?, ?, ?, ?, ?)";
+        
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setString(1, trackId);
+            pstmt.setString(2, title);
+            pstmt.setString(3, artist);
+            pstmt.setString(4, genre);
+            pstmt.setInt(5, duration);
+            pstmt.executeUpdate();
+            
+            System.out.println("📊 Analytics recorded: " + artist + " - " + title);
+        } catch (SQLException e) {
+            System.err.println("❌ Error recording play: " + e.getMessage());
+            e.printStackTrace();
         }
     }
     
     /**
-     * Get top tracks berdasarkan PLAY_HISTORY
+     * Get top tracks
      */
     public List<Map<String, Object>> getTopTracks(int limit) {
         String sql = """
-            SELECT t.title, t.artist, COUNT(ph.id) as play_count 
-            FROM play_history ph
-            JOIN tracks t ON ph.track_id = t.id
-            GROUP BY t.id, t.title, t.artist
+            SELECT track_title, artist, COUNT(*) as play_count 
+            FROM play_history 
+            GROUP BY track_id, track_title, artist 
             ORDER BY play_count DESC 
             LIMIT ?
         """;
         
         List<Map<String, Object>> results = new ArrayList<>();
+        
         try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-            
             pstmt.setInt(1, limit);
+            ResultSet rs = pstmt.executeQuery();
             
-            try (ResultSet rs = pstmt.executeQuery()) {
-                while (rs.next()) {
-                    Map<String, Object> track = new HashMap<>();
-                    track.put("title", rs.getString("title"));
-                    track.put("artist", rs.getString("artist"));
-                    track.put("count", rs.getInt("play_count"));
-                    results.add(track);
-                }
+            while (rs.next()) {
+                Map<String, Object> track = new HashMap<>();
+                track.put("title", rs.getString("track_title"));
+                track.put("artist", rs.getString("artist"));
+                track.put("count", rs.getInt("play_count"));
+                results.add(track);
             }
+            
+            System.out.println("✅ Loaded " + results.size() + " top tracks");
         } catch (SQLException e) {
             System.err.println("❌ Error getting top tracks: " + e.getMessage());
             e.printStackTrace();
@@ -57,15 +70,14 @@ public class AnalyticsDAO {
     }
     
     /**
-     * Get genre distribution dari TRACKS yang pernah diputar
+     * Get genre distribution
      */
     public Map<String, Integer> getGenreDistribution() {
         String sql = """
-            SELECT t.genre, COUNT(ph.id) as count 
-            FROM play_history ph
-            JOIN tracks t ON ph.track_id = t.id
-            WHERE t.genre IS NOT NULL AND t.genre <> ''
-            GROUP BY t.genre
+            SELECT genre, COUNT(*) as count 
+            FROM play_history 
+            WHERE genre IS NOT NULL AND genre != '' AND genre != 'Music'
+            GROUP BY genre 
             ORDER BY count DESC
         """;
         
@@ -80,6 +92,18 @@ public class AnalyticsDAO {
                     distribution.put(genre, rs.getInt("count"));
                 }
             }
+            
+            // If empty, show generic "Music"
+            if (distribution.isEmpty()) {
+                String countSql = "SELECT COUNT(*) as count FROM play_history";
+                try (ResultSet rs2 = stmt.executeQuery(countSql)) {
+                    if (rs2.next() && rs2.getInt("count") > 0) {
+                        distribution.put("Music", rs2.getInt("count"));
+                    }
+                }
+            }
+            
+            System.out.println("✅ Loaded " + distribution.size() + " genres");
         } catch (SQLException e) {
             System.err.println("❌ Error getting genre distribution: " + e.getMessage());
             e.printStackTrace();
@@ -88,27 +112,28 @@ public class AnalyticsDAO {
     }
     
     /**
-     * Get plays per day untuk N hari terakhir
+     * Get plays per day
      */
     public Map<String, Integer> getPlaysPerDay(int days) {
         String sql = """
-            SELECT FORMATDATETIME(played_at, 'yyyy-MM-dd') as day, COUNT(*) as count 
+            SELECT DATE(played_at) as day, COUNT(*) as count 
             FROM play_history 
-            WHERE played_at >= DATEADD(DAY, ?, CURRENT_DATE)
-            GROUP BY FORMATDATETIME(played_at, 'yyyy-MM-dd')
+            WHERE played_at >= DATE('now', '-' || ? || ' days')
+            GROUP BY DATE(played_at) 
             ORDER BY day
         """;
         
         Map<String, Integer> playsPerDay = new LinkedHashMap<>();
+        
         try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setInt(1, days);
+            ResultSet rs = pstmt.executeQuery();
             
-            pstmt.setInt(1, -days);
-            
-            try (ResultSet rs = pstmt.executeQuery()) {
-                while (rs.next()) {
-                    playsPerDay.put(rs.getString("day"), rs.getInt("count"));
-                }
+            while (rs.next()) {
+                playsPerDay.put(rs.getString("day"), rs.getInt("count"));
             }
+            
+            System.out.println("✅ Loaded " + playsPerDay.size() + " days of play data");
         } catch (SQLException e) {
             System.err.println("❌ Error getting plays per day: " + e.getMessage());
             e.printStackTrace();
@@ -121,38 +146,37 @@ public class AnalyticsDAO {
      */
     public int getTotalPlayCount() {
         String sql = "SELECT COUNT(*) as total FROM play_history";
-        try (Statement stmt = connection.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
-            
-            if (rs.next()) {
-                return rs.getInt("total");
-            }
-        } catch (SQLException e) {
-            System.err.println("❌ Error getting total play count: " + e.getMessage());
-            e.printStackTrace();
-        }
-        return 0;
-    }
-    
-    /**
-     * Get total listening time (estimasi dari durasi track)
-     */
-    public int getTotalListeningTime() {
-        String sql = """
-            SELECT COALESCE(SUM(t.duration), 0) as total 
-            FROM play_history ph
-            JOIN tracks t ON ph.track_id = t.id
-        """;
         
         try (Statement stmt = connection.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
             
             if (rs.next()) {
-                return rs.getInt("total");
+                int count = rs.getInt("total");
+                System.out.println("✅ Total plays: " + count);
+                return count;
+            }
+        } catch (SQLException e) {
+            System.err.println("❌ Error getting total play count: " + e.getMessage());
+        }
+        return 0;
+    }
+    
+    /**
+     * Get total listening time
+     */
+    public int getTotalListeningTime() {
+        String sql = "SELECT SUM(duration) as total FROM play_history";
+        
+        try (Statement stmt = connection.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            
+            if (rs.next()) {
+                int total = rs.getInt("total");
+                System.out.println("✅ Total listening time: " + total + " seconds");
+                return total;
             }
         } catch (SQLException e) {
             System.err.println("❌ Error getting total listening time: " + e.getMessage());
-            e.printStackTrace();
         }
         return 0;
     }
@@ -162,9 +186,19 @@ public class AnalyticsDAO {
      */
     public String getMostActiveDay() {
         String sql = """
-            SELECT FORMATDATETIME(played_at, 'EEEE') as day_name, COUNT(*) as count 
+            SELECT 
+                CASE CAST(strftime('%w', played_at) AS INTEGER)
+                    WHEN 0 THEN 'Sunday'
+                    WHEN 1 THEN 'Monday'
+                    WHEN 2 THEN 'Tuesday'
+                    WHEN 3 THEN 'Wednesday'
+                    WHEN 4 THEN 'Thursday'
+                    WHEN 5 THEN 'Friday'
+                    WHEN 6 THEN 'Saturday'
+                END as day_name,
+                COUNT(*) as count 
             FROM play_history 
-            GROUP BY FORMATDATETIME(played_at, 'EEEE'), DAYOFWEEK(played_at)
+            GROUP BY strftime('%w', played_at) 
             ORDER BY count DESC 
             LIMIT 1
         """;
@@ -173,202 +207,93 @@ public class AnalyticsDAO {
              ResultSet rs = stmt.executeQuery(sql)) {
             
             if (rs.next()) {
-                return rs.getString("day_name");
+                String day = rs.getString("day_name");
+                System.out.println("✅ Most active day: " + day);
+                return day;
             }
         } catch (SQLException e) {
             System.err.println("❌ Error getting most active day: " + e.getMessage());
-            e.printStackTrace();
         }
         return "N/A";
     }
     
     /**
-     * Get listening stats per artist
+     * Get top artists
      */
     public List<Map<String, Object>> getTopArtists(int limit) {
         String sql = """
-            SELECT t.artist, COUNT(ph.id) as play_count
-            FROM play_history ph
-            JOIN tracks t ON ph.track_id = t.id
-            WHERE t.artist IS NOT NULL AND t.artist <> ''
-            GROUP BY t.artist
-            ORDER BY play_count DESC
+            SELECT artist, COUNT(*) as play_count 
+            FROM play_history 
+            WHERE artist IS NOT NULL AND artist != ''
+            GROUP BY artist 
+            ORDER BY play_count DESC 
             LIMIT ?
         """;
         
         List<Map<String, Object>> results = new ArrayList<>();
+        
         try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-            
             pstmt.setInt(1, limit);
+            ResultSet rs = pstmt.executeQuery();
             
-            try (ResultSet rs = pstmt.executeQuery()) {
-                while (rs.next()) {
-                    Map<String, Object> artist = new HashMap<>();
-                    artist.put("name", rs.getString("artist"));
-                    artist.put("count", rs.getInt("play_count"));
-                    results.add(artist);
-                }
+            while (rs.next()) {
+                Map<String, Object> artist = new HashMap<>();
+                artist.put("name", rs.getString("artist"));
+                artist.put("count", rs.getInt("play_count"));
+                results.add(artist);
             }
         } catch (SQLException e) {
             System.err.println("❌ Error getting top artists: " + e.getMessage());
-            e.printStackTrace();
         }
         return results;
     }
     
     /**
-     * Get most active hour of the day
+     * Clear all analytics data
      */
-    public Map<Integer, Integer> getPlaysByHour() {
-        String sql = """
-            SELECT HOUR(played_at) as hour, COUNT(*) as count 
-            FROM play_history 
-            GROUP BY HOUR(played_at)
-            ORDER BY hour
-        """;
+    public void clearAllData() {
+        String sql = "DELETE FROM play_history";
         
-        Map<Integer, Integer> playsByHour = new LinkedHashMap<>();
-        try (Statement stmt = connection.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
-            
-            while (rs.next()) {
-                playsByHour.put(rs.getInt("hour"), rs.getInt("count"));
-            }
+        try (Statement stmt = connection.createStatement()) {
+            stmt.execute(sql);
+            System.out.println("🗑️ All analytics data cleared");
         } catch (SQLException e) {
-            System.err.println("❌ Error getting plays by hour: " + e.getMessage());
-            e.printStackTrace();
+            System.err.println("❌ Error clearing data: " + e.getMessage());
         }
-        return playsByHour;
     }
     
     /**
-     * Get average BPM of played tracks
+     * Debug: Print sample data
      */
-    public int getAverageBPM() {
-        String sql = """
-            SELECT AVG(t.bpm) as avg_bpm 
-            FROM play_history ph
-            JOIN tracks t ON ph.track_id = t.id
-            WHERE t.bpm > 0
-        """;
+    public void debugPrintData() {
+        System.out.println("\n" + "=".repeat(60));
+        System.out.println("🔍 DEBUG: Analytics SQLite Data");
+        System.out.println("=".repeat(60));
         
-        try (Statement stmt = connection.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
-            
-            if (rs.next()) {
-                return rs.getInt("avg_bpm");
-            }
-        } catch (SQLException e) {
-            System.err.println("❌ Error getting average BPM: " + e.getMessage());
-        }
-        return 0;
-    }
-    
-    /**
-     * Get mood distribution
-     */
-    public Map<String, Integer> getMoodDistribution() {
-        String sql = """
-            SELECT t.mood, COUNT(ph.id) as count 
-            FROM play_history ph
-            JOIN tracks t ON ph.track_id = t.id
-            WHERE t.mood IS NOT NULL AND t.mood <> ''
-            GROUP BY t.mood
-            ORDER BY count DESC
-        """;
-        
-        Map<String, Integer> moodDist = new LinkedHashMap<>();
-        try (Statement stmt = connection.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
-            
-            while (rs.next()) {
-                String mood = rs.getString("mood");
-                if (mood != null && !mood.trim().isEmpty()) {
-                    moodDist.put(mood, rs.getInt("count"));
-                }
-            }
-        } catch (SQLException e) {
-            System.err.println("❌ Error getting mood distribution: " + e.getMessage());
-        }
-        return moodDist;
-    }
-    
-    /**
-     * Get liked tracks count
-     */
-    public int getLikedTracksCount() {
-        String sql = "SELECT COUNT(*) as count FROM play_history WHERE liked = TRUE";
-        
-        try (Statement stmt = connection.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
-            
-            if (rs.next()) {
-                return rs.getInt("count");
-            }
-        } catch (SQLException e) {
-            System.err.println("❌ Error getting liked tracks count: " + e.getMessage());
-        }
-        return 0;
-    }
-    
-    /**
-     * Get total unique tracks played
-     */
-    public int getUniqueTracksPlayed() {
-        String sql = "SELECT COUNT(DISTINCT track_id) as count FROM play_history";
-        
-        try (Statement stmt = connection.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
-            
-            if (rs.next()) {
-                return rs.getInt("count");
-            }
-        } catch (SQLException e) {
-            System.err.println("❌ Error getting unique tracks played: " + e.getMessage());
-        }
-        return 0;
-    }
-    
-    /**
-     * Get listening streak (consecutive days with plays)
-     */
-    public int getCurrentStreak() {
-        String sql = """
-            SELECT DISTINCT CAST(played_at AS DATE) as play_date
-            FROM play_history
-            ORDER BY play_date DESC
-        """;
-        
-        try (Statement stmt = connection.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
-            
-            int streak = 0;
-            Date previousDate = null;
-            
-            while (rs.next()) {
-                Date currentDate = rs.getDate("play_date");
-                
-                if (previousDate == null) {
-                    // First date
-                    streak = 1;
-                    previousDate = currentDate;
-                } else {
-                    // Check if consecutive
-                    long diffInDays = (previousDate.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24);
-                    
-                    if (diffInDays == 1) {
-                        streak++;
-                        previousDate = currentDate;
-                    } else {
-                        break; // Streak broken
-                    }
+        try {
+            // Total count
+            String sql1 = "SELECT COUNT(*) as count FROM play_history";
+            try (Statement stmt = connection.createStatement();
+                 ResultSet rs = stmt.executeQuery(sql1)) {
+                if (rs.next()) {
+                    System.out.println("📊 Total records: " + rs.getInt("count"));
                 }
             }
             
-            return streak;
+            // Recent plays
+            String sql2 = "SELECT track_title, artist, played_at FROM play_history ORDER BY played_at DESC LIMIT 5";
+            try (Statement stmt = connection.createStatement();
+                 ResultSet rs = stmt.executeQuery(sql2)) {
+                System.out.println("\n🎵 Recent plays:");
+                while (rs.next()) {
+                    System.out.println("   - " + rs.getString("artist") + " - " + rs.getString("track_title") + " @ " + rs.getString("played_at"));
+                }
+            }
+            
         } catch (SQLException e) {
-            System.err.println("❌ Error getting current streak: " + e.getMessage());
+            System.err.println("❌ Debug error: " + e.getMessage());
         }
-        return 0;
+        
+        System.out.println("=".repeat(60) + "\n");
     }
 }

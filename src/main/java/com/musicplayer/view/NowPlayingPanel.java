@@ -2,7 +2,6 @@ package com.musicplayer.view;
 
 import com.musicplayer.controller.MusicPlayerController;
 import com.musicplayer.model.Track;
-import com.musicplayer.service.AudioPlayerService;
 import com.musicplayer.util.IconLoader;
 import com.musicplayer.util.ImageUtils;
 import com.musicplayer.util.TimeFormatter;
@@ -11,7 +10,6 @@ import net.miginfocom.swing.MigLayout;
 import javax.swing.*;
 import java.awt.*;
 
-// Control play music
 public class NowPlayingPanel extends JPanel {
     private MusicPlayerController controller;
     private JLabel albumArtLabel;
@@ -26,10 +24,14 @@ public class NowPlayingPanel extends JPanel {
     private JButton nextButton;
     private JButton shuffleButton;
     private JButton repeatButton;
-
+    private JButton lyricsToggleButton;
+    
+    private LyricsPanel lyricsPanel;
+    private JSplitPane splitPane;
+    private boolean lyricsVisible = true;
+    
     private boolean isDraggingSeekBar = false;
     private Timer updateTimer;
-
 
     public NowPlayingPanel(MusicPlayerController controller) {
         this.controller = controller;
@@ -38,8 +40,30 @@ public class NowPlayingPanel extends JPanel {
     }
 
     private void initializeComponents() {
-        setLayout(new MigLayout("fill, insets 40", "[center]", "[][][][]30[]20[]"));
+        setLayout(new BorderLayout());
         setBackground(new Color(30, 30, 35));
+        
+        // Create split pane
+        splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
+        splitPane.setDividerLocation(650);
+        splitPane.setDividerSize(2);
+        splitPane.setBorder(null);
+        splitPane.setBackground(new Color(30, 30, 35));
+        
+        // Left: Player controls
+        JPanel playerPanel = createPlayerPanel();
+        splitPane.setLeftComponent(playerPanel);
+        
+        // Right: Lyrics
+        lyricsPanel = new LyricsPanel();
+        splitPane.setRightComponent(lyricsPanel);
+        
+        add(splitPane, BorderLayout.CENTER);
+    }
+    
+    private JPanel createPlayerPanel() {
+        JPanel panel = new JPanel(new MigLayout("fill, insets 40", "[center]", "[][][][]30[]20[]10[]"));
+        panel.setBackground(new Color(30, 30, 35));
 
         // Album art
         albumArtLabel = new JLabel();
@@ -49,28 +73,28 @@ public class NowPlayingPanel extends JPanel {
         albumArtLabel.setOpaque(true);
         albumArtLabel.setBackground(new Color(45, 45, 50));
         albumArtLabel.setIcon(ImageUtils.getPlaceholderIcon(300, 300));
-        add(albumArtLabel, "wrap, center, gapbottom 30");
+        panel.add(albumArtLabel, "wrap, center, gapbottom 30");
 
         // Title
         titleLabel = new JLabel("No track playing");
         titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 28));
         titleLabel.setForeground(Color.WHITE);
         titleLabel.setHorizontalAlignment(SwingConstants.CENTER);
-        add(titleLabel, "wrap, center, gapbottom 10");
+        panel.add(titleLabel, "wrap, center, gapbottom 10");
 
         // Artist
         artistLabel = new JLabel("");
         artistLabel.setFont(new Font("Segoe UI", Font.PLAIN, 18));
         artistLabel.setForeground(new Color(180, 180, 180));
         artistLabel.setHorizontalAlignment(SwingConstants.CENTER);
-        add(artistLabel, "wrap, center, gapbottom 5");
+        panel.add(artistLabel, "wrap, center, gapbottom 5");
 
         // Album
         albumLabel = new JLabel("");
         albumLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14));
         albumLabel.setForeground(new Color(150, 150, 150));
         albumLabel.setHorizontalAlignment(SwingConstants.CENTER);
-        add(albumLabel, "wrap, center, gapbottom 30");
+        panel.add(albumLabel, "wrap, center, gapbottom 30");
 
         // Seek bar with time labels
         JPanel seekPanel = new JPanel(new MigLayout("fillx, insets 0", "[]10[grow]10[]", ""));
@@ -103,13 +127,12 @@ public class NowPlayingPanel extends JPanel {
         durationLabel.setForeground(new Color(150, 150, 150));
         seekPanel.add(durationLabel);
 
-        add(seekPanel, "wrap, growx, width 60%");
+        panel.add(seekPanel, "wrap, growx, width 60%");
 
         // Playback controls
         JPanel controlsPanel = new JPanel(new MigLayout("insets 0", "[]10[]10[]10[]10[]", ""));
         controlsPanel.setOpaque(false);
 
-        // Ganti tombol-tombol text dengan ikon dari IconLoader
         shuffleButton = new JButton(IconLoader.loadButtonIcon(IconLoader.Icons.SHUFFLE));
         shuffleButton.setToolTipText("Shuffle");
         shuffleButton.setFocusPainted(false);
@@ -128,7 +151,8 @@ public class NowPlayingPanel extends JPanel {
         previousButton.addActionListener(e -> controller.playPrevious());
         controlsPanel.add(previousButton);
 
-        playPauseButton = new JButton(IconLoader.loadButtonIcon(controller.isPlayerPlaying() ? IconLoader.Icons.PAUSE : IconLoader.Icons.PLAY));
+        playPauseButton = new JButton(IconLoader.loadButtonIcon(
+            controller.isPlayerPlaying() ? IconLoader.Icons.PAUSE : IconLoader.Icons.PLAY));
         playPauseButton.setToolTipText("Play / Pause");
         playPauseButton.setFocusPainted(false);
         playPauseButton.setBorderPainted(false);
@@ -156,29 +180,31 @@ public class NowPlayingPanel extends JPanel {
         repeatButton.addActionListener(e -> toggleRepeat());
         controlsPanel.add(repeatButton);
 
-        add(controlsPanel, "center");
-    }
-
-    private JButton createControlButton(String text) {
-        JButton button = new JButton(text);
-        button.setFont(new Font("Segoe UI", Font.PLAIN, 24));
-        button.setFocusPainted(false);
-        button.setBorderPainted(false);
-        button.setContentAreaFilled(false);
-        button.setForeground(Color.WHITE);
-        button.setPreferredSize(new Dimension(50, 50));
-        button.setCursor(new Cursor(Cursor.HAND_CURSOR));
-
-        button.addMouseListener(new java.awt.event.MouseAdapter() {
+        panel.add(controlsPanel, "wrap, center");
+        
+        // Lyrics toggle button
+        lyricsToggleButton = new JButton("🎤 Hide Lyrics");
+        lyricsToggleButton.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        lyricsToggleButton.setForeground(new Color(180, 180, 180));
+        lyricsToggleButton.setBackground(new Color(45, 45, 50));
+        lyricsToggleButton.setFocusPainted(false);
+        lyricsToggleButton.setBorderPainted(false);
+        lyricsToggleButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        lyricsToggleButton.addActionListener(e -> toggleLyrics());
+        
+        // Hover effect
+        lyricsToggleButton.addMouseListener(new java.awt.event.MouseAdapter() {
             public void mouseEntered(java.awt.event.MouseEvent evt) {
-                button.setForeground(new Color(100, 180, 255));
+                lyricsToggleButton.setBackground(new Color(60, 60, 65));
             }
             public void mouseExited(java.awt.event.MouseEvent evt) {
-                button.setForeground(Color.WHITE);
+                lyricsToggleButton.setBackground(new Color(45, 45, 50));
             }
         });
-
-        return button;
+        
+        panel.add(lyricsToggleButton, "center");
+        
+        return panel;
     }
 
     private void setupUpdateTimer() {
@@ -203,12 +229,11 @@ public class NowPlayingPanel extends JPanel {
         // Update play/pause button
         boolean isPlaying = controller.isPlayerPlaying();
         playPauseButton.setIcon(
-                IconLoader.loadButtonIcon(
-                        isPlaying ? IconLoader.Icons.PAUSE : IconLoader.Icons.PLAY
-                )
+            IconLoader.loadButtonIcon(
+                isPlaying ? IconLoader.Icons.PAUSE : IconLoader.Icons.PLAY
+            )
         );
-        playPauseButton.setText(null); // pastikan tidak ada text
-
+        playPauseButton.setText(null);
 
         // Update shuffle/repeat buttons
         updateShuffleButton();
@@ -234,6 +259,12 @@ public class NowPlayingPanel extends JPanel {
             // Reset seek bar
             seekBar.setValue(0);
             currentTimeLabel.setText("0:00");
+            
+            // Update lyrics panel
+            if (lyricsPanel != null) {
+                lyricsPanel.updateTrack(track);
+            }
+            
         } else {
             titleLabel.setText("No track playing");
             artistLabel.setText("");
@@ -242,6 +273,11 @@ public class NowPlayingPanel extends JPanel {
             seekBar.setValue(0);
             currentTimeLabel.setText("0:00");
             durationLabel.setText("0:00");
+            
+            // Clear lyrics
+            if (lyricsPanel != null) {
+                lyricsPanel.clearLyrics();
+            }
         }
     }
 
@@ -254,21 +290,43 @@ public class NowPlayingPanel extends JPanel {
         controller.toggleRepeat();
         updateRepeatButton();
     }
+    
+    private void toggleLyrics() {
+        lyricsVisible = !lyricsVisible;
+        
+        if (lyricsVisible) {
+            splitPane.setRightComponent(lyricsPanel);
+            splitPane.setDividerLocation(650);
+            lyricsToggleButton.setText("🎤 Hide Lyrics");
+        } else {
+            splitPane.setRightComponent(null);
+            lyricsToggleButton.setText("🎤 Show Lyrics");
+        }
+        
+        splitPane.revalidate();
+        splitPane.repaint();
+    }
 
     private void updateShuffleButton() {
         shuffleButton.setIcon(IconLoader.loadButtonIcon(
-                controller.isShuffleEnabled()
-                        ? IconLoader.Icons.SHUFFLE_ON
-                        : IconLoader.Icons.SHUFFLE
+            controller.isShuffleEnabled()
+                ? IconLoader.Icons.SHUFFLE_ON
+                : IconLoader.Icons.SHUFFLE
         ));
-
     }
 
     private void updateRepeatButton() {
-        if (controller.isRepeatEnabled()) {
-            repeatButton.setForeground(new Color(100, 180, 255));
-        } else {
-            repeatButton.setForeground(Color.WHITE);
-        }
+        repeatButton.setIcon(IconLoader.loadButtonIcon(
+            controller.isRepeatEnabled()
+                ? IconLoader.Icons.REPEAT_ON
+                : IconLoader.Icons.REPEAT
+        ));
+    }
+    
+    /**
+     * Get lyrics panel reference
+     */
+    public LyricsPanel getLyricsPanel() {
+        return lyricsPanel;
     }
 }

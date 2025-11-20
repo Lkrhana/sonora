@@ -59,14 +59,45 @@ public class DatabaseManager {
                 FOREIGN KEY (track_id) REFERENCES tracks(id) ON DELETE CASCADE
             )
         """;
+        
+        String createPlaylistsTable = """
+            CREATE TABLE IF NOT EXISTS playlists (
+                id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                name VARCHAR(500) NOT NULL,
+                description VARCHAR(2000),
+                cover_image_url VARCHAR(1000),
+                created_at TIMESTAMP NOT NULL,
+                updated_at TIMESTAMP NOT NULL
+            )
+        """;
+
+        String createPlaylistTracksTable = """
+            CREATE TABLE IF NOT EXISTS playlist_tracks (
+                id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                playlist_id BIGINT NOT NULL,
+                track_id VARCHAR(255) NOT NULL,
+                position INT NOT NULL,
+                added_at TIMESTAMP NOT NULL,
+                FOREIGN KEY (playlist_id) REFERENCES playlists(id) ON DELETE CASCADE,
+                FOREIGN KEY (track_id) REFERENCES tracks(id) ON DELETE CASCADE,
+                UNIQUE(playlist_id, track_id)
+            )
+        """;
 
         try (Statement stmt = connection.createStatement()) {
             stmt.execute(createTracksTable);
             stmt.execute(createPlayHistoryTable);
+            stmt.execute(createPlaylistsTable);
+            stmt.execute(createPlaylistTracksTable);
         }
     }
 
     public void saveTrack(Track track) throws SQLException {
+        
+        if (track.getId() == null || track.getId().isEmpty()) {
+            track.setId(generateTrackId(track));
+        }
+        
         String sql = """
             MERGE INTO tracks (id, title, artist, album, genre, duration, 
                              bpm, mood, youtube_id, thumbnail_url, added_date)
@@ -86,7 +117,31 @@ public class DatabaseManager {
             pstmt.setString(10, track.getThumbnailUrl());
             pstmt.setTimestamp(11, Timestamp.valueOf(track.getAddedDate()));
             pstmt.executeUpdate();
+            System.out.println("✅ Track saved with ID: " + track.getId());
         }
+    }
+    
+    private String generateTrackId(Track track) {
+        if (track.getYoutubeId() != null && !track.getYoutubeId().isEmpty()) {
+            return "yt_" + track.getYoutubeId();
+        } else {
+            // Fallback: hash of title + artist
+            String combined = (track.getTitle() != null ? track.getTitle() : "") + "_" + (track.getArtist() != null ? track.getArtist() : "");
+            return "track_" + Math.abs(combined.hashCode());
+        }
+    }
+    
+    private String ensureTrackSaved(Track track) throws SQLException {
+        // Generate ID if not exists
+        if (track.getId() == null || track.getId().isEmpty()) {
+            String trackId = generateTrackId(track);
+            track.setId(trackId);
+        }
+
+        // Save track (existing method)
+        saveTrack(track);
+
+        return track.getId();
     }
 
     public Track getTrack(String trackId) throws SQLException {
@@ -195,6 +250,250 @@ public class DatabaseManager {
         }
 
         return track;
+    }
+    
+    public long createPlaylist(com.musicplayer.model.Playlist playlist) throws SQLException {
+        String sql = """
+            INSERT INTO playlists (name, description, cover_image_url, created_at, updated_at) 
+            VALUES (?, ?, ?, ?, ?)
+        """;
+
+        try (PreparedStatement pstmt = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+            pstmt.setString(1, playlist.getName());
+            pstmt.setString(2, playlist.getDescription());
+            pstmt.setString(3, playlist.getCoverImageUrl());
+            pstmt.setTimestamp(4, Timestamp.valueOf(playlist.getCreatedAt()));
+            pstmt.setTimestamp(5, Timestamp.valueOf(playlist.getUpdatedAt()));
+
+            pstmt.executeUpdate();
+
+            try (ResultSet generatedKeys = pstmt.getGeneratedKeys()) {
+                if (generatedKeys.next()) {
+                    long playlistId = generatedKeys.getLong(1);
+                    playlist.setId((int) playlistId);
+                    System.out.println("✅ Playlist created: " + playlist.getName() + " (ID: " + playlistId + ")");
+                    return playlistId;
+                }
+            }
+        }
+
+        return -1;
+    }
+    
+    public List<com.musicplayer.model.Playlist> getAllPlaylists() throws SQLException {
+        List<com.musicplayer.model.Playlist> playlists = new ArrayList<>();
+        String sql = "SELECT * FROM playlists ORDER BY updated_at DESC";
+
+        try (Statement stmt = connection.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+
+            while (rs.next()) {
+                com.musicplayer.model.Playlist playlist = mapPlaylist(rs);
+                playlists.add(playlist);
+            }
+        }
+
+        return playlists;
+    }
+    
+    public com.musicplayer.model.Playlist getPlaylist(long playlistId) throws SQLException {
+        String sql = "SELECT * FROM playlists WHERE id = ?";
+
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setLong(1, playlistId);
+
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    return mapPlaylist(rs);
+                }
+            }
+        }
+
+        return null;
+    }
+    
+    public void updatePlaylist(com.musicplayer.model.Playlist playlist) throws SQLException {
+        String sql = """
+            UPDATE playlists 
+            SET name = ?, description = ?, cover_image_url = ?, updated_at = ? 
+            WHERE id = ?
+        """;
+
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setString(1, playlist.getName());
+            pstmt.setString(2, playlist.getDescription());
+            pstmt.setString(3, playlist.getCoverImageUrl());
+            pstmt.setTimestamp(4, Timestamp.valueOf(LocalDateTime.now()));
+            pstmt.setInt(5, playlist.getId());
+
+            pstmt.executeUpdate();
+            System.out.println("✅ Playlist updated: " + playlist.getName());
+        }
+    }
+    
+    public void deletePlaylist(long playlistId) throws SQLException {
+        String sql = "DELETE FROM playlists WHERE id = ?";
+
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setLong(1, playlistId);
+            pstmt.executeUpdate();
+            System.out.println("🗑️ Playlist deleted (ID: " + playlistId + ")");
+        }
+    }
+    
+    public void addTrackToPlaylist(long playlistId, Track track) throws SQLException {
+        // Ensure track has ID and is saved
+        String trackId = ensureTrackSaved(track); // ← Use helper method
+
+        // Get next position
+        int position = getPlaylistTrackCount(playlistId) + 1;
+
+        String sql = """
+            INSERT INTO playlist_tracks (playlist_id, track_id, position, added_at) 
+            VALUES (?, ?, ?, ?)
+        """;
+
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setLong(1, playlistId);
+            pstmt.setString(2, trackId);
+            pstmt.setInt(3, position);
+            pstmt.setTimestamp(4, Timestamp.valueOf(LocalDateTime.now()));
+
+            pstmt.executeUpdate();
+
+            // Update playlist timestamp
+            updatePlaylistTimestamp(playlistId);
+
+            System.out.println("➕ Track added to playlist: " + track.getTitle() + " (ID: " + trackId + ")");
+
+        } catch (SQLException e) {
+            if (e.getMessage().contains("Unique index or primary key violation")) {
+                System.out.println("⚠️ Track already in playlist");
+            } else {
+                throw e;
+            }
+        }
+    }
+    
+    public void removeTrackFromPlaylist(long playlistId, String trackId) throws SQLException {
+        String sql = "DELETE FROM playlist_tracks WHERE playlist_id = ? AND track_id = ?";
+
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setLong(1, playlistId);
+            pstmt.setString(2, trackId);
+
+            pstmt.executeUpdate();
+
+            // Reorder remaining tracks
+            reorderPlaylistTracks(playlistId);
+
+            // Update playlist timestamp
+            updatePlaylistTimestamp(playlistId);
+
+            System.out.println("🗑️ Track removed from playlist");
+        }
+    }
+    
+    public List<Track> getPlaylistTracks(long playlistId) throws SQLException {
+        List<Track> tracks = new ArrayList<>();
+
+        String sql = """
+            SELECT t.*, pt.position 
+            FROM tracks t
+            JOIN playlist_tracks pt ON t.id = pt.track_id
+            WHERE pt.playlist_id = ?
+            ORDER BY pt.position ASC
+        """;
+
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setLong(1, playlistId);
+
+            try (ResultSet rs = pstmt.executeQuery()) {
+                while (rs.next()) {
+                    tracks.add(mapTrack(rs));
+                }
+            }
+        }
+
+        return tracks;
+    }
+    
+    private com.musicplayer.model.Playlist mapPlaylist(ResultSet rs) throws SQLException {
+        com.musicplayer.model.Playlist playlist = new com.musicplayer.model.Playlist();
+        playlist.setId(rs.getInt("id"));
+        playlist.setName(rs.getString("name"));
+        playlist.setDescription(rs.getString("description"));
+        playlist.setCoverImageUrl(rs.getString("cover_image_url"));
+
+        Timestamp createdAt = rs.getTimestamp("created_at");
+        if (createdAt != null) {
+            playlist.setCreatedAt(createdAt.toLocalDateTime());
+        }
+
+        Timestamp updatedAt = rs.getTimestamp("updated_at");
+        if (updatedAt != null) {
+            playlist.setUpdatedAt(updatedAt.toLocalDateTime());
+        }
+
+        // Load tracks
+        try {
+            playlist.setTracks(getPlaylistTracks(playlist.getId()));
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        return playlist;
+    }
+    
+    private int getPlaylistTrackCount(long playlistId) throws SQLException {
+        String sql = "SELECT COUNT(*) FROM playlist_tracks WHERE playlist_id = ?";
+
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setLong(1, playlistId);
+
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1);
+                }
+            }
+        }
+
+        return 0;
+    }
+    
+    private void reorderPlaylistTracks(long playlistId) throws SQLException {
+        String selectSql = """
+            SELECT id FROM playlist_tracks 
+            WHERE playlist_id = ? 
+            ORDER BY position ASC
+        """;
+
+        try (PreparedStatement selectStmt = connection.prepareStatement(selectSql)) {
+            selectStmt.setLong(1, playlistId);
+
+            try (ResultSet rs = selectStmt.executeQuery()) {
+                int position = 1;
+
+                String updateSql = "UPDATE playlist_tracks SET position = ? WHERE id = ?";
+                try (PreparedStatement updateStmt = connection.prepareStatement(updateSql)) {
+                    while (rs.next()) {
+                        updateStmt.setInt(1, position++);
+                        updateStmt.setLong(2, rs.getLong("id"));
+                        updateStmt.executeUpdate();
+                    }
+                }
+            }
+        }
+    }
+    
+    private void updatePlaylistTimestamp(long playlistId) throws SQLException {
+        String sql = "UPDATE playlists SET updated_at = ? WHERE id = ?";
+
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setTimestamp(1, Timestamp.valueOf(LocalDateTime.now()));
+            pstmt.setLong(2, playlistId);
+            pstmt.executeUpdate();
+        }
     }
 
     public void close() {

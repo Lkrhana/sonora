@@ -2,11 +2,10 @@ package com.musicplayer.controller;
 
 import com.musicplayer.model.Recommendation;
 import com.musicplayer.model.Track;
-import com.musicplayer.repository.AnalyticsDAO;
 import com.musicplayer.repository.DatabaseManager;
 import com.musicplayer.service.*;
 import com.musicplayer.view.NowPlayingPanel;
-import com.musicplayer.repository.AnalyticsDAO;
+
 import java.io.File;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -22,7 +21,7 @@ public class MusicPlayerController {
     private RecommendationService recommendationService;
     private AudioPlayerService audioPlayerService;
     private MetadataEnrichmentService enrichmentService;
-    private AnalyticsDAO analyticsDAO;
+
     private NowPlayingPanel nowPlayingPanel;
     private File tempRecordingFile;
 
@@ -302,10 +301,6 @@ public class MusicPlayerController {
     public boolean isRepeatEnabled() {
         return audioPlayerService.isRepeat();
     }
-    
-    public AudioPlayerService.RepeatMode getRepeatMode() {
-        return audioPlayerService.getRepeatMode();
-    }
 
     public List<Track> getAllTracks() {
         try {
@@ -314,208 +309,6 @@ public class MusicPlayerController {
             e.printStackTrace();
             return new ArrayList<>();
         }
-    }
-    
-    public void setEqualizerEnabled(boolean enabled) {
-        audioPlayerService.setEqualizerEnabled(enabled);
-    }
-    
-    public boolean isEqualizerEnabled() {
-        return audioPlayerService.isEqualizerEnabled();
-    }
-    
-    public void setPreamp(float value) {
-        audioPlayerService.setPreamp(value);
-    }
-    
-    public float getPreamp() {
-        return audioPlayerService.getPreamp();
-    }
-    
-    public void setBandAmplitude(int bandIndex, float amplitude) {
-        audioPlayerService.setBandAmplitude(bandIndex, amplitude);
-    }
-    
-    public float getBandAmplitude(int bandIndex) {
-        return audioPlayerService.getBandAmplitude(bandIndex);
-    }
-    
-    public float[] getAllBandAmplitudes() {
-        return audioPlayerService.getAllBandAmplitudes();
-    }
-    
-    public void setAllBandAmplitudes(float[] amplitudes) {
-        audioPlayerService.setAllBandAmplitudes(amplitudes);
-    }
-    
-    public void resetEqualizer() {
-        audioPlayerService.resetEqualizer();
-    }
-    
-    public void loadPreset(String presetName) {
-        audioPlayerService.loadPreset(presetName);
-    }
-    
-    public String[] getAvailablePresets() {
-        return audioPlayerService.getAvailablePresets();
-    }
-    
-    public String[] getBandFrequencies() {
-        return audioPlayerService.getBandFrequencies();
-    }
-    
-    public List<Track> getQueue() {
-        return audioPlayerService.getQueue();
-    }
-    
-    public void clearQueue() {
-        audioPlayerService.clearQueue();
-    }
-    
-    public void addToQueue(Track track) {
-        audioPlayerService.addToQueue(track);
-        System.out.println("➕ Added to queue: " + track.getArtist() + " - " + track.getTitle());
-    }
-    
-    public void removeFromQueue(int index) {
-        audioPlayerService.removeFromQueue(index);
-    }
-    
-    public void moveTrackUp(int index) {
-        audioPlayerService.moveTrackUp(index);
-    }
-    
-    public void moveTrackDown(int index) {
-        audioPlayerService.moveTrackDown(index);
-    }
-    
-    public int getCurrentQueueIndex() {
-        return audioPlayerService.getCurrentIndex();
-    }
-    
-    public long createPlaylist(String name, String description) {
-        try {
-            com.musicplayer.model.Playlist playlist = new com.musicplayer.model.Playlist(name, description);
-            long playlistId = dbManager.createPlaylist(playlist);
-            System.out.println("✅ Playlist created via controller: " + name);
-            return playlistId;
-        } catch (Exception e) {
-            System.err.println("❌ Error creating playlist: " + e.getMessage());
-            e.printStackTrace();
-            return -1;
-        }
-    }
-    
-    public List<com.musicplayer.model.Playlist> getAllPlaylists() {
-        try {
-            return dbManager.getAllPlaylists();
-        } catch (Exception e) {
-            System.err.println("❌ Error getting playlists: " + e.getMessage());
-            e.printStackTrace();
-            return new ArrayList<>();
-        }
-    }
-    
-    public com.musicplayer.model.Playlist getPlaylist(long playlistId) {
-        try {
-            return dbManager.getPlaylist(playlistId);
-        } catch (Exception e) {
-            System.err.println("❌ Error getting playlist: " + e.getMessage());
-            e.printStackTrace();
-            return null;
-        }
-    }
-    
-    public boolean updatePlaylist(com.musicplayer.model.Playlist playlist) {
-        try {
-            dbManager.updatePlaylist(playlist);
-            System.out.println("✅ Playlist updated: " + playlist.getName());
-            return true;
-        } catch (Exception e) {
-            System.err.println("❌ Error updating playlist: " + e.getMessage());
-            e.printStackTrace();
-            return false;
-        }
-    }
-    
-    public boolean deletePlaylist(long playlistId) {
-        try {
-            dbManager.deletePlaylist(playlistId);
-            System.out.println("🗑️ Playlist deleted");
-            return true;
-        } catch (Exception e) {
-            System.err.println("❌ Error deleting playlist: " + e.getMessage());
-            e.printStackTrace();
-            return false;
-        }
-    }
-    
-    public boolean addTrackToPlaylist(long playlistId, Track track) {
-        try {
-            dbManager.addTrackToPlaylist(playlistId, track);
-            System.out.println("➕ Added track to playlist: " + track.getTitle());
-            return true;
-        } catch (Exception e) {
-            System.err.println("❌ Error adding track to playlist: " + e.getMessage());
-            e.printStackTrace();
-            return false;
-        }
-    }
-    
-    public boolean removeTrackFromPlaylist(long playlistId, String trackId) {
-        try {
-            System.out.println("🔍 Controller: Removing track");
-            System.out.println("   Playlist ID: " + playlistId);
-            System.out.println("   Track ID: " + trackId);
-
-            dbManager.removeTrackFromPlaylist(playlistId, trackId);
-
-            System.out.println("✅ Controller: Track removed successfully");
-            return true;
-
-        } catch (Exception e) {
-            System.err.println("❌ Controller: Error removing track: " + e.getMessage());
-            e.printStackTrace();
-            return false;
-        }
-    }
-    
-    public List<Track> getPlaylistTracks(long playlistId) {
-        try {
-            return dbManager.getPlaylistTracks(playlistId);
-        } catch (Exception e) {
-            System.err.println("❌ Error getting playlist tracks: " + e.getMessage());
-            e.printStackTrace();
-            return new ArrayList<>();
-        }
-    }
-    
-    public void playPlaylist(com.musicplayer.model.Playlist playlist) {
-        if (playlist == null || playlist.getTracks().isEmpty()) {
-            System.out.println("⚠️ Playlist is empty");
-            return;
-        }
-
-        List<Track> tracks = playlist.getTracks();
-        setQueueAndPlay(tracks, 0);
-        System.out.println("▶️ Playing playlist: " + playlist.getName() + " (" + tracks.size() + " tracks)");
-    }
-    
-    public void playPlaylistFromTrack(com.musicplayer.model.Playlist playlist, int trackIndex) {
-        if (playlist == null || playlist.getTracks().isEmpty()) {
-            System.out.println("⚠️ Playlist is empty");
-            return;
-        }
-
-        List<Track> tracks = playlist.getTracks();
-        if (trackIndex >= 0 && trackIndex < tracks.size()) {
-            setQueueAndPlay(tracks, trackIndex);
-            System.out.println("▶️ Playing from playlist: " + playlist.getName() + " (track " + (trackIndex + 1) + ")");
-        }
-    }
-    
-    public AnalyticsDAO getAnalyticsDAO() {
-        return analyticsDAO;
     }
 
     public void shutdown() {

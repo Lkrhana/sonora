@@ -23,11 +23,7 @@ public class IconLoader {
         public static final String HOME = "home.png";
         public static final String NOW_PLAYING = "nowplaying.png";
         public static final String RECOMMENDATIONS = "recommendations.png";
-        public static final String PLAYLISTS = "playlist.png";
         public static final String FINGERPRINT = "fingerprint.png";
-        public static final String EQUALIZER = "equalizer.png";
-        public static final String QUEUE = "queue.png";
-        public static final String VISUALIZER = "viasualizer.png";
 
         // Player control icons
         public static final String PLAY = "play.png";
@@ -39,7 +35,6 @@ public class IconLoader {
         public static final String SHUFFLE_ON = "shuffle_on.png";
         public static final String REPEAT = "repeat.png";
         public static final String REPEAT_ON = "repeat_on.png";
-        public static final String REPEAT_ONE = "repeat_one.png";
 
         // Volume icons
         public static final String VOLUME = "volume.png";

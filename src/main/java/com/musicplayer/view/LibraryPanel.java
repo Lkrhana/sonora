@@ -20,12 +20,9 @@ import javax.swing.SwingUtilities;
 import javax.swing.SwingWorker;
 
 import com.musicplayer.controller.MusicPlayerController;
-import com.musicplayer.model.Playlist;
 import com.musicplayer.model.Track;
 import com.musicplayer.util.IconLoader;
 import com.musicplayer.util.ImageUtils;
-import javax.swing.JLayeredPane;
-import javax.swing.Timer;
 
 import net.miginfocom.swing.MigLayout;
 
@@ -411,10 +408,6 @@ public class LibraryPanel extends JPanel {
         artistLabel.setFont(new Font("Segoe UI", Font.PLAIN, 18));
         artistLabel.setForeground(new Color(180, 180, 180));
         card.add(artistLabel, "wrap");
-        
-        JPanel buttonsPanel = new JPanel(new MigLayout("insets 0", "[]10[]10[]", ""));
-        buttonsPanel.setOpaque(false);
-        
 
         // Play button
         JButton playButton = new JButton("PLAY NOW", IconLoader.loadButtonIcon(IconLoader.Icons.PLAY));
@@ -426,56 +419,6 @@ public class LibraryPanel extends JPanel {
         playButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
         playButton.addActionListener(e -> playTrack(track, index));
         card.add(playButton, "gaptop 10, width 200!, height 50!");
-        
-        // Add to Queue button
-        JButton addToQueueButton = new JButton(IconLoader.loadButtonIcon(IconLoader.Icons.QUEUE));
-        addToQueueButton.setToolTipText("Add to Queue");
-        addToQueueButton.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        addToQueueButton.setFocusPainted(false);
-        addToQueueButton.setPreferredSize(new Dimension(50, 50));
-        addToQueueButton.setBackground(new Color(60, 60, 70));
-        addToQueueButton.setForeground(Color.WHITE);
-        addToQueueButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        addToQueueButton.addActionListener(e -> addToQueue(track));
-        
-        // Hover effect
-        addToQueueButton.addMouseListener(new java.awt.event.MouseAdapter() {
-            @Override
-            public void mouseEntered(java.awt.event.MouseEvent evt) {
-                addToQueueButton.setBackground(new Color(80, 80, 90));
-            }
-            @Override
-            public void mouseExited(java.awt.event.MouseEvent evt) {
-                addToQueueButton.setBackground(new Color(60, 60, 70));
-            }
-        });
-
-        buttonsPanel.add(addToQueueButton);
-
-        JButton addToPlaylistButton = new JButton(IconLoader.loadButtonIcon(IconLoader.Icons.PLAYLISTS));
-        addToPlaylistButton.setToolTipText("Add to Playlist");
-        addToPlaylistButton.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        addToPlaylistButton.setFocusPainted(false);
-        addToPlaylistButton.setPreferredSize(new Dimension(50, 50));
-        addToPlaylistButton.setBackground(new Color(60, 60, 70));
-        addToPlaylistButton.setForeground(Color.WHITE);
-        addToPlaylistButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        addToPlaylistButton.addActionListener(e -> showAddToPlaylistDialog(track));
-
-        addToPlaylistButton.addMouseListener(new java.awt.event.MouseAdapter() {
-            @Override
-            public void mouseEntered(java.awt.event.MouseEvent evt) {
-                addToPlaylistButton.setBackground(new Color(80, 80, 90));
-            }
-            @Override
-            public void mouseExited(java.awt.event.MouseEvent evt) {
-                addToPlaylistButton.setBackground(new Color(60, 60, 70));
-            }
-        });
-
-        buttonsPanel.add(addToPlaylistButton);
-
-        card.add(buttonsPanel, "gaptop 10");
 
         return card;
     }
@@ -522,30 +465,6 @@ public class LibraryPanel extends JPanel {
         infoPanel.add(artistLabel);
 
         card.add(infoPanel, "grow");
-        
-        // QUeue button
-        JButton addToQueueButton = new JButton(IconLoader.loadButtonIcon(IconLoader.Icons.QUEUE));
-        addToQueueButton.setToolTipText("Add to Queue");
-        addToQueueButton.setFocusPainted(false);
-        addToQueueButton.setBorderPainted(false);
-        addToQueueButton.setContentAreaFilled(false);
-        addToQueueButton.setPreferredSize(new Dimension(40, 40));
-        addToQueueButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        addToQueueButton.addActionListener(e -> {
-            addToQueue(track);
-        });
-        card.add(addToQueueButton);
-        
-        // Playlist button
-        JButton addToPlaylistButton = new JButton(IconLoader.loadButtonIcon(IconLoader.Icons.PLAYLISTS));
-        addToPlaylistButton.setToolTipText("Add to Playlist");
-        addToPlaylistButton.setFocusPainted(false);
-        addToPlaylistButton.setBorderPainted(false);
-        addToPlaylistButton.setContentAreaFilled(false);
-        addToPlaylistButton.setPreferredSize(new Dimension(40, 40));
-        addToPlaylistButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        addToPlaylistButton.addActionListener(e -> showAddToPlaylistDialog(track));
-        card.add(addToPlaylistButton);
 
         // Play button
         JButton playButton = new JButton(IconLoader.loadButtonIcon(IconLoader.Icons.PLAY));
@@ -591,125 +510,5 @@ public class LibraryPanel extends JPanel {
         scrollPane.repaint();
         scrollPane.getVerticalScrollBar().setValue(0);
         searchField.setText("");
-    }
-
-    private void addToQueue(Track track) {
-        controller.addToQueue(track);
-
-        // Show toast notification
-        showToastNotification("Added to queue: " + track.getTitle());
-
-        System.out.println("➕ Added to queue: " + track.getArtist() + " - " + track.getTitle());
-    }
-    
-    private void showToastNotification(String message) {
-        // Create toast panel
-        JPanel toast = new JPanel(new BorderLayout(10, 10));
-        toast.setBackground(new Color(50, 50, 55, 230)); // Semi-transparent
-        toast.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(new Color(100, 180, 255), 2),
-            BorderFactory.createEmptyBorder(10, 15, 10, 15)
-        ));
-
-        // Icon
-        JLabel icon = new JLabel(IconLoader.loadButtonIcon(IconLoader.Icons.QUEUE));
-        toast.add(icon, BorderLayout.WEST);
-
-        // Message
-        JLabel messageLabel = new JLabel(message);
-        messageLabel.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        messageLabel.setForeground(Color.WHITE);
-        toast.add(messageLabel, BorderLayout.CENTER);
-
-        // Position toast at bottom center
-        JLayeredPane layeredPane = getRootPane().getLayeredPane();
-        toast.setBounds(
-            (getWidth() - 400) / 2,  // Center horizontally
-            getHeight() - 100,        // Near bottom
-            400,                      // Width
-            50                        // Height
-        );
-
-        layeredPane.add(toast, JLayeredPane.POPUP_LAYER);
-        layeredPane.revalidate();
-        layeredPane.repaint();
-
-        // Auto-hide after 2 seconds
-        Timer timer = new Timer(2000, e -> {
-            layeredPane.remove(toast);
-            layeredPane.revalidate();
-            layeredPane.repaint();
-        });
-        timer.setRepeats(false);
-        timer.start();
-    }
-
-    private void showAddToPlaylistDialog(Track track) {
-        List<Playlist> playlists = controller.getAllPlaylists();
-
-        if (playlists.isEmpty()) {
-            int result = JOptionPane.showConfirmDialog(this,
-                "No playlists found. Create one now?",
-                "No Playlists",
-                JOptionPane.YES_NO_OPTION);
-
-            if (result == JOptionPane.YES_OPTION) {
-                // Show create playlist dialog
-                String name = JOptionPane.showInputDialog(this, "Playlist name:");
-                if (name != null && !name.trim().isEmpty()) {
-                    long playlistId = controller.createPlaylist(name, "");
-                    if (playlistId > 0) {
-                        controller.addTrackToPlaylist(playlistId, track);
-                        showToastNotification("Added to new playlist: " + name);
-                        if (mainFrame != null) {
-                            mainFrame.refreshPlaylistPanel();
-                        } else {
-                            JOptionPane.showMessageDialog(this, "Track is already in this playlist or an error occurred", "Error", JOptionPane.WARNING_MESSAGE);
-                        }
-                    }
-                }
-            }
-            return;
-        }
-
-        // Show playlist selection dialog
-        Playlist[] playlistArray = playlists.toArray(new Playlist[0]);
-        Playlist selectedPlaylist = (Playlist) JOptionPane.showInputDialog(
-            this,
-            "Select playlist:",
-            "Add to Playlist",
-            JOptionPane.PLAIN_MESSAGE,
-            null,
-            playlistArray,
-            playlistArray[0]
-        );
-
-        if (selectedPlaylist != null) {
-            if (controller.addTrackToPlaylist(selectedPlaylist.getId(), track)) {
-                showToastNotification("Added to " + selectedPlaylist.getName());
-
-                // ========== INSTANT UPDATE - UPDATED ==========
-                if (mainFrame != null) {
-                    // Immediate optimistic update
-                    mainFrame.notifyTrackAddedToPlaylist(track, selectedPlaylist.getId());
-
-                    // Full refresh as backup (async)
-                    SwingUtilities.invokeLater(() -> {
-                        try {
-                            Thread.sleep(100); // Small delay
-                            mainFrame.refreshPlaylistPanel();
-                        } catch (InterruptedException ex) {
-                            ex.printStackTrace();
-                        }
-                    });
-                }
-                // ========== END INSTANT UPDATE ==========
-            } else {
-                JOptionPane.showMessageDialog(this,
-                    "Track is already in this playlist or an error occurred",
-                    "Error",
-                    JOptionPane.WARNING_MESSAGE);
-            }
-        }
     }
 }

@@ -1,7 +1,6 @@
 package com.musicplayer.view;
 
 import com.musicplayer.controller.MusicPlayerController;
-import com.musicplayer.model.Track;
 import com.musicplayer.util.IconLoader;
 import net.miginfocom.swing.MigLayout;
 
@@ -18,9 +17,6 @@ public class MainFrame extends JFrame {
     private NowPlayingPanel nowPlayingPanel;
     private RecommendationPanel recommendationPanel;
     private FingerprintPanel fingerprintPanel;
-    private EqualizerPanel equalizerPanel;
-    private PlaylistPanel playlistPanel;
-    private AnalyticsPanel analyticsPanel;
 
     public MainFrame() {
         initializeComponents();
@@ -45,10 +41,6 @@ public class MainFrame extends JFrame {
         nowPlayingPanel = new NowPlayingPanel(controller);
         recommendationPanel = new RecommendationPanel(controller);
         fingerprintPanel = new FingerprintPanel(controller, this);
-        equalizerPanel = new EqualizerPanel(controller);
-        playlistPanel = new PlaylistPanel(controller);
-        playlistPanel.setMainFrame(this);
-        analyticsPanel = new AnalyticsPanel(controller);
 
         // Set controller references
         controller.setNowPlayingPanel(nowPlayingPanel);
@@ -70,9 +62,6 @@ public class MainFrame extends JFrame {
         contentPanel.add(nowPlayingPanel, "NowPlaying");
         contentPanel.add(recommendationPanel, "Recommendations");
         contentPanel.add(fingerprintPanel, "Fingerprint");
-        contentPanel.add(equalizerPanel, "Equalizer");
-        contentPanel.add(playlistPanel, "Playlists");
-        contentPanel.add(analyticsPanel, "Analytics");
         add(contentPanel, BorderLayout.CENTER);
 
         // Player controls at bottom
@@ -85,7 +74,7 @@ public class MainFrame extends JFrame {
 
     private JPanel createSidebar() {
         JPanel sidebar = new JPanel();
-        sidebar.setLayout(new MigLayout("fillx, insets 10", "[grow]", "[]10[]10[]10[]10[]10[]10[]push"));
+        sidebar.setLayout(new MigLayout("fillx, insets 10", "[grow]", "[]10[]10[]10[]10[]push"));
         sidebar.setPreferredSize(new Dimension(220, 0));
         sidebar.setBackground(new Color(25, 25, 28));
 
@@ -105,10 +94,7 @@ public class MainFrame extends JFrame {
         addNavButton(sidebar, "Library", "Library", IconLoader.Icons.HOME);
         addNavButton(sidebar, "Now Playing", "NowPlaying", IconLoader.Icons.NOW_PLAYING);
         addNavButton(sidebar, "Recommendations", "Recommendations", IconLoader.Icons.RECOMMENDATIONS);
-        addNavButton(sidebar, "Playlists", "Playlists", IconLoader.Icons.PLAYLISTS);
         addNavButton(sidebar, "Identify Song", "Fingerprint", IconLoader.Icons.FINGERPRINT);
-        addNavButton(sidebar, "Equalizer", "Equalizer", IconLoader.Icons.EQUALIZER);
-        addNavButton(sidebar, "Analytics", "Analytics", IconLoader.Icons.HOME);
 
         return sidebar;
     }
@@ -180,17 +166,5 @@ public class MainFrame extends JFrame {
                 System.exit(0);
             }
         });
-    }
-    
-    public void refreshPlaylistPanel() {
-        if (playlistPanel != null) {
-            playlistPanel.refreshPlaylists();
-        }
-    }
-    
-    public void notifyTrackAddedToPlaylist(Track track, long playlistId) {
-        if (playlistPanel != null) {
-            playlistPanel.addTrackToCurrentPlaylistUI(track, playlistId);
-        }
     }
 }

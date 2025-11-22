@@ -45,6 +45,7 @@ public class MainFrame extends JFrame {
         recommendationPanel = new RecommendationPanel(controller);
         fingerprintPanel = new FingerprintPanel(controller, this);
         equalizerPanel = new EqualizerPanel(controller);
+        controller.setEqualizerPanel(equalizerPanel);
         playlistPanel = new PlaylistPanel(controller);
         playlistPanel.setMainFrame(this);
 
@@ -104,7 +105,7 @@ public class MainFrame extends JFrame {
         addNavButton(sidebar, "Recommendations", "Recommendations", IconLoader.Icons.RECOMMENDATIONS);
         addNavButton(sidebar, "Playlists", "Playlists", IconLoader.Icons.PLAYLISTS);
         addNavButton(sidebar, "Identify Song", "Fingerprint", IconLoader.Icons.FINGERPRINT);
-        addNavButton(sidebar, "Equalizer", "Equalizer", IconLoader.Icons.EQUALIZER);
+        addNavButton(sidebar, "Equalizer & Visualizer", "Equalizer", IconLoader.Icons.EQUALIZER);
 
         return sidebar;
     }

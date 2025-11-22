@@ -1,20 +1,16 @@
 package com.musicplayer.view;
 
 import com.musicplayer.controller.MusicPlayerController;
+import com.musicplayer.service.AudioVisualizerService;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.*;
-import javax.swing.event.ChangeEvent;
-import javax.swing.event.ChangeListener;
 import java.awt.*;
 
-/**
- * Panel untuk Audio Equalizer dengan 10 frequency bands
- */
 public class EqualizerPanel extends JPanel {
     private MusicPlayerController controller;
     
-    // UI Components
+    // komponen UI
     private JToggleButton enableButton;
     private JComboBox<String> presetComboBox;
     private JButton resetButton;
@@ -23,14 +19,17 @@ public class EqualizerPanel extends JPanel {
     private JLabel[] bandLabels;
     private JLabel preampValueLabel;
     private JLabel[] bandValueLabels;
+    private JToggleButton visualizerToggle;
+    private SpectrumAnalyzerPanel spectrumPanel;
+    private WaveformPanel waveformPanel;
     
-    // Frequency band names
+    // nama frequency band
     private static final String[] BAND_NAMES = {
         "60Hz", "170Hz", "310Hz", "600Hz", "1kHz",
         "3kHz", "6kHz", "12kHz", "14kHz", "16kHz"
     };
     
-    private boolean isUpdating = false; // Prevent feedback loops
+    private boolean isUpdating = false; // supaya ga feedback loop
 
     public EqualizerPanel(MusicPlayerController controller) {
         this.controller = controller;
@@ -40,34 +39,124 @@ public class EqualizerPanel extends JPanel {
     private void initializeComponents() {
         setLayout(new BorderLayout(10, 10));
         setBackground(new Color(18, 18, 20));
-        setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        
+        // main panel spy bisa scroll
+        JPanel mainPanel = new JPanel(new MigLayout("fillx, insets 20", "[grow]", "[]20[]20[]"));
+        mainPanel.setBackground(new Color(18, 18, 20));
 
-        // Top panel - Header & Controls
+        // eq section
+        JPanel equalizerSection = createEqualizerSection();
+        mainPanel.add(equalizerSection, "wrap, growx");
+        
+        // visualizer section
+        JPanel visualizerSection = createVisualizerSection();
+        mainPanel.add(visualizerSection, "wrap, growx");
+        
+        JScrollPane scrollPane = new JScrollPane(mainPanel);
+        
+        scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
+        
+        scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        scrollPane.setBorder(null);
+        scrollPane.getVerticalScrollBar().setUnitIncrement(16);
+        
+        add(scrollPane, BorderLayout.CENTER);
+    }
+    
+    private JPanel createEqualizerSection() {
+        JPanel section = new JPanel(new BorderLayout(10, 10));
+        section.setBackground(new Color(18, 18, 20));
+
+        // top panel
         JPanel topPanel = createTopPanel();
-        add(topPanel, BorderLayout.NORTH);
+        section.add(topPanel, BorderLayout.NORTH);
 
-        // Center panel - Preamp + Frequency Bands
+        // center panel
         JPanel centerPanel = createCenterPanel();
-        add(centerPanel, BorderLayout.CENTER);
+        section.add(centerPanel, BorderLayout.CENTER);
 
-        // Bottom panel - Info
+        // bottom panel
         JPanel bottomPanel = createBottomPanel();
-        add(bottomPanel, BorderLayout.SOUTH);
+        section.add(bottomPanel, BorderLayout.SOUTH);
+
+        return section;
+    }
+    
+    private JPanel createVisualizerSection() {
+        JPanel section = new JPanel(new BorderLayout(10, 10));
+        section.setBackground(new Color(18, 18, 20));
+        section.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createMatteBorder(2, 0, 0, 0, new Color(60, 60, 65)),
+            BorderFactory.createEmptyBorder(20, 0, 0, 0)
+        ));
+
+        // Header
+        JPanel headerPanel = new JPanel(new MigLayout("fillx", "[]push[]", ""));
+        headerPanel.setOpaque(false);
+
+        JLabel titleLabel = new JLabel("AUDIO VISUALIZER");
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 24));
+        titleLabel.setForeground(Color.WHITE);
+
+        visualizerToggle = new JToggleButton("OFF");
+        visualizerToggle.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        visualizerToggle.setFocusPainted(false);
+        visualizerToggle.setPreferredSize(new Dimension(80, 35));
+        visualizerToggle.addActionListener(e -> toggleVisualizer());
+        updateVisualizerToggleStyle();
+
+        headerPanel.add(titleLabel);
+        headerPanel.add(visualizerToggle);
+
+        section.add(headerPanel, BorderLayout.NORTH);
+
+        // visualizer panels
+        JPanel visualizerPanels = new JPanel(new MigLayout("fillx", "[grow]", "[]10[]"));
+        visualizerPanels.setOpaque(false);
+
+        // spectrum analyzer
+        JPanel spectrumContainer = new JPanel(new BorderLayout(0, 5));
+        spectrumContainer.setOpaque(false);
+        
+        JLabel spectrumLabel = new JLabel("Spectrum Analyzer");
+        spectrumLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        spectrumLabel.setForeground(new Color(180, 180, 180));
+        spectrumContainer.add(spectrumLabel, BorderLayout.NORTH);
+        
+        spectrumPanel = new SpectrumAnalyzerPanel(64);
+        spectrumContainer.add(spectrumPanel, BorderLayout.CENTER);
+        
+        visualizerPanels.add(spectrumContainer, "wrap, growx");
+
+        // waveform
+        JPanel waveformContainer = new JPanel(new BorderLayout(0, 5));
+        waveformContainer.setOpaque(false);
+        
+        JLabel waveformLabel = new JLabel("Waveform");
+        waveformLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        waveformLabel.setForeground(new Color(180, 180, 180));
+        waveformContainer.add(waveformLabel, BorderLayout.NORTH);
+        
+        waveformPanel = new WaveformPanel();
+        waveformContainer.add(waveformPanel, BorderLayout.CENTER);
+        
+        visualizerPanels.add(waveformContainer, "growx");
+
+        section.add(visualizerPanels, BorderLayout.CENTER);
+
+        return section;
     }
 
-    /**
-     * Create top panel with enable button, preset selector, and reset button
-     */
     private JPanel createTopPanel() {
         JPanel panel = new JPanel(new MigLayout("fillx", "[]push[]20[]", ""));
         panel.setOpaque(false);
 
-        // Title
+        // title
         JLabel titleLabel = new JLabel("AUDIO EQUALIZER");
         titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 24));
         titleLabel.setForeground(Color.WHITE);
 
-        // Enable/Disable toggle button
+        // enable/disable toggle button
         enableButton = new JToggleButton("OFF");
         enableButton.setFont(new Font("Segoe UI", Font.BOLD, 12));
         enableButton.setFocusPainted(false);
@@ -75,7 +164,7 @@ public class EqualizerPanel extends JPanel {
         enableButton.addActionListener(e -> toggleEqualizer());
         updateEnableButtonStyle();
 
-        // Preset selector
+        // preset selector
         JLabel presetLabel = new JLabel("Preset:");
         presetLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14));
         presetLabel.setForeground(new Color(180, 180, 180));
@@ -85,7 +174,7 @@ public class EqualizerPanel extends JPanel {
         presetComboBox.setPreferredSize(new Dimension(150, 30));
         presetComboBox.addActionListener(e -> loadPreset());
 
-        // Reset button
+        // reset button
         resetButton = new JButton("Reset");
         resetButton.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         resetButton.setFocusPainted(false);
@@ -101,27 +190,21 @@ public class EqualizerPanel extends JPanel {
         return panel;
     }
 
-    /**
-     * Create center panel with preamp and 10 frequency band sliders
-     */
     private JPanel createCenterPanel() {
         JPanel panel = new JPanel(new MigLayout("fillx", "[]20[]", "[]10[]"));
         panel.setOpaque(false);
 
-        // Preamp section
+        // preamp section
         JPanel preampPanel = createPreampPanel();
         panel.add(preampPanel, "grow");
 
-        // Frequency bands section
+        // frequency bands section
         JPanel bandsPanel = createBandsPanel();
         panel.add(bandsPanel, "grow, wrap");
 
         return panel;
     }
 
-    /**
-     * Create preamp slider panel
-     */
     private JPanel createPreampPanel() {
         JPanel panel = new JPanel(new MigLayout("fill, insets 10", "[center]", "[]10[]push[]10[]"));
         panel.setBackground(new Color(30, 30, 35));
@@ -134,13 +217,13 @@ public class EqualizerPanel extends JPanel {
             new Color(180, 180, 180)
         ));
 
-        // Preamp value label
+        // preamp value label
         preampValueLabel = new JLabel("0.0 dB");
         preampValueLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
         preampValueLabel.setForeground(new Color(100, 180, 255));
         panel.add(preampValueLabel, "wrap");
 
-        // Preamp slider (vertical)
+        // preamp slider (vertical)
         preampSlider = new JSlider(JSlider.VERTICAL, -200, 200, 0); // -20.0 to +20.0 (x10)
         preampSlider.setOpaque(false);
         preampSlider.setPreferredSize(new Dimension(50, 250));
@@ -149,7 +232,7 @@ public class EqualizerPanel extends JPanel {
         preampSlider.addChangeListener(e -> updatePreamp());
         panel.add(preampSlider, "grow, wrap");
 
-        // Scale labels
+        // scale labels
         JLabel maxLabel = new JLabel("+20");
         maxLabel.setFont(new Font("Segoe UI", Font.PLAIN, 10));
         maxLabel.setForeground(new Color(150, 150, 150));
@@ -168,9 +251,6 @@ public class EqualizerPanel extends JPanel {
         return panel;
     }
 
-    /**
-     * Create panel with 10 frequency band sliders (2 ROWS x 5 BANDS - SIMPLE)
-     */
     private JPanel createBandsPanel() {
         JPanel mainPanel = new JPanel(new BorderLayout(10, 10));
         mainPanel.setBackground(new Color(30, 30, 35));
@@ -187,38 +267,38 @@ public class EqualizerPanel extends JPanel {
         bandLabels = new JLabel[10];
         bandValueLabels = new JLabel[10];
 
-        // Panel untuk semua sliders - 2 rows x 5 columns
+        // panel untuk semua sliders (2 rows x 5 columns)
         JPanel slidersPanel = new JPanel(new GridLayout(2, 5, 15, 20)); // 2 rows, 5 cols, hgap=15, vgap=20
         slidersPanel.setOpaque(false);
 
-        // Create 10 slider panels
+        // create 10 slider panels
         for (int i = 0; i < 10; i++) {
             final int index = i;
 
-            // Panel untuk 1 slider (value label + slider + freq label)
+            // panel untuk 1 slider (value label + slider + freq label)
             JPanel sliderPanel = new JPanel(new BorderLayout(0, 5));
             sliderPanel.setOpaque(false);
 
-            // Value label (top)
+            // value label (top)
             bandValueLabels[i] = new JLabel("0.0", SwingConstants.CENTER);
             bandValueLabels[i].setFont(new Font("Segoe UI", Font.PLAIN, 11));
             bandValueLabels[i].setForeground(new Color(100, 180, 255));
             sliderPanel.add(bandValueLabels[i], BorderLayout.NORTH);
 
-            // Slider (center) - vertical
+            // slider (center) - vertical
             bandSliders[i] = new JSlider(JSlider.VERTICAL, -200, 200, 0);
             bandSliders[i].setOpaque(false);
             bandSliders[i].setPreferredSize(new Dimension(40, 150));
             bandSliders[i].addChangeListener(e -> updateBand(index));
             sliderPanel.add(bandSliders[i], BorderLayout.CENTER);
 
-            // Frequency label (bottom)
+            // frequency label (bottom)
             bandLabels[i] = new JLabel(BAND_NAMES[i], SwingConstants.CENTER);
             bandLabels[i].setFont(new Font("Segoe UI", Font.PLAIN, 11));
             bandLabels[i].setForeground(new Color(180, 180, 180));
             sliderPanel.add(bandLabels[i], BorderLayout.SOUTH);
 
-            // Add to grid
+            // add to grid
             slidersPanel.add(sliderPanel);
         }
 
@@ -227,9 +307,6 @@ public class EqualizerPanel extends JPanel {
         return mainPanel;
     }
 
-    /**
-     * Create bottom info panel
-     */
     private JPanel createBottomPanel() {
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.CENTER));
         panel.setOpaque(false);
@@ -242,15 +319,12 @@ public class EqualizerPanel extends JPanel {
         return panel;
     }
 
-    /**
-     * Toggle equalizer on/off
-     */
     private void toggleEqualizer() {
         boolean enabled = enableButton.isSelected();
         controller.setEqualizerEnabled(enabled);
         updateEnableButtonStyle();
         
-        // Enable/disable all controls
+        // enable/disable all controls
         preampSlider.setEnabled(enabled);
         presetComboBox.setEnabled(enabled);
         resetButton.setEnabled(enabled);
@@ -261,9 +335,6 @@ public class EqualizerPanel extends JPanel {
         System.out.println("🎛️ Equalizer " + (enabled ? "enabled" : "disabled"));
     }
 
-    /**
-     * Update enable button style
-     */
     private void updateEnableButtonStyle() {
         if (enableButton.isSelected()) {
             enableButton.setText("ON");
@@ -275,10 +346,7 @@ public class EqualizerPanel extends JPanel {
             enableButton.setForeground(Color.LIGHT_GRAY);
         }
     }
-
-    /**
-     * Load selected preset
-     */
+    
     private void loadPreset() {
         if (isUpdating) return;
         
@@ -296,9 +364,6 @@ public class EqualizerPanel extends JPanel {
         }
     }
 
-    /**
-     * Reset equalizer to flat
-     */
     private void resetEqualizer() {
         isUpdating = true;
         
@@ -315,9 +380,6 @@ public class EqualizerPanel extends JPanel {
         System.out.println("🔄 Equalizer reset to flat");
     }
 
-    /**
-     * Update preamp value
-     */
     private void updatePreamp() {
         if (isUpdating) return;
         
@@ -326,9 +388,6 @@ public class EqualizerPanel extends JPanel {
         preampValueLabel.setText(String.format("%.1f dB", value));
     }
 
-    /**
-     * Update specific band amplitude
-     */
     private void updateBand(int index) {
         if (isUpdating) return;
         
@@ -337,9 +396,6 @@ public class EqualizerPanel extends JPanel {
         bandValueLabels[index].setText(String.format("%.1f", value));
     }
 
-    /**
-     * Update all sliders from controller values
-     */
     private void updateSlidersFromController() {
         isUpdating = true;
         
@@ -356,5 +412,36 @@ public class EqualizerPanel extends JPanel {
         }
         
         isUpdating = false;
+    }
+
+    private void toggleVisualizer() {
+        boolean enabled = visualizerToggle.isSelected();
+        System.out.println("🔥 Visualizer toggle: " + (enabled ? "ON" : "OFF"));
+        controller.toggleVisualizer(enabled);
+        updateVisualizerToggleStyle();
+
+        if (!enabled) {
+            spectrumPanel.clear();
+            waveformPanel.clear();
+        }
+    }
+    
+    public void updateVisualization(float[] spectrum, float[] waveform) {
+        SwingUtilities.invokeLater(() -> {
+            spectrumPanel.updateSpectrum(spectrum);
+            waveformPanel.updateWaveform(waveform);
+        });
+    }
+    
+    private void updateVisualizerToggleStyle() {
+        if (visualizerToggle.isSelected()) {
+            visualizerToggle.setText("ON");
+            visualizerToggle.setBackground(new Color(50, 150, 50));
+            visualizerToggle.setForeground(Color.WHITE);
+        } else {
+            visualizerToggle.setText("OFF");
+            visualizerToggle.setBackground(new Color(80, 80, 85));
+            visualizerToggle.setForeground(Color.LIGHT_GRAY);
+        }
     }
 }

@@ -5,7 +5,9 @@ import com.musicplayer.model.Track;
 import com.musicplayer.repository.DatabaseManager;
 import com.musicplayer.service.*;
 import com.musicplayer.view.NowPlayingPanel;
+import com.musicplayer.view.EqualizerPanel;
 
+import javax.swing.*;
 import java.io.File;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -21,7 +23,10 @@ public class MusicPlayerController {
     private RecommendationService recommendationService;
     private AudioPlayerService audioPlayerService;
     private MetadataEnrichmentService enrichmentService;
+    private AudioVisualizerService audioVisualizerService;
+    private EqualizerPanel equalizerPanel;
 
+    private volatile File currentAudioFile;
     private NowPlayingPanel nowPlayingPanel;
     private File tempRecordingFile;
 
@@ -35,7 +40,10 @@ public class MusicPlayerController {
         this.recommendationService = new RecommendationService();
         this.audioPlayerService = new AudioPlayerService();
         this.enrichmentService = new MetadataEnrichmentService();
+        this.audioVisualizerService = new AudioVisualizerService();
+        this.audioPlayerService.setAudioVisualizerService(audioVisualizerService);
 
+        setupVisualizerListener();
         setupPlayerListeners();
 
         System.out.println("✅ MusicPlayerController initialized");
@@ -50,6 +58,9 @@ public class MusicPlayerController {
             @Override
             public void onPlayerStateChanged(boolean isPlaying) {
                 // Player state changed
+                if (!isPlaying) {
+                    audioVisualizerService.clear();
+                }
             }
 
             @Override
@@ -248,6 +259,7 @@ public class MusicPlayerController {
 
     public void stop() {
         audioPlayerService.stop();
+        audioVisualizerService.clear();
     }
 
     public void togglePlayPause() {
@@ -315,8 +327,13 @@ public class MusicPlayerController {
         }
     }
     
+    // eq
     public void setEqualizerEnabled(boolean enabled) {
         audioPlayerService.setEqualizerEnabled(enabled);
+    }
+    
+    public void setEqualizerPanel(EqualizerPanel panel) {
+        this.equalizerPanel = panel;
     }
     
     public boolean isEqualizerEnabled() {
@@ -363,6 +380,38 @@ public class MusicPlayerController {
         return audioPlayerService.getBandFrequencies();
     }
     
+    // visualization
+    private void setupVisualizerListener() {
+        audioVisualizerService.setVisualizerListener((spectrum, waveform) -> {
+            System.out.println("📊 Visualizer listener received spectrum data (length: " + spectrum.length + ")");
+            if (equalizerPanel != null) {
+                equalizerPanel.updateVisualization(spectrum, waveform);
+            }
+        });
+        System.out.println("✅ Visualizer listener set up");
+    }
+    
+    public void stopVisualizer() {
+        audioVisualizerService.clear();
+    }
+    
+    public void toggleVisualizer(boolean enabled) {
+        System.out.println("🎚️ Toggle Visualizer: " + enabled);
+        
+        audioVisualizerService.setEnabled(enabled);
+    }
+    
+    public void playTrack(Track track) {
+        if (track == null) return;
+        
+        // Reset visualizer dulu biar bersih
+        audioVisualizerService.clear(); 
+        
+        // Langsung play aja, visualizer otomatis jalan via callback
+        audioPlayerService.playTrack(track);
+    }
+    
+    // queue
     public List<Track> getQueue() {
         return audioPlayerService.getQueue();
     }

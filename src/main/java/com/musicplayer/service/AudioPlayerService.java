@@ -5,10 +5,12 @@ import uk.co.caprica.vlcj.factory.MediaPlayerFactory;
 import uk.co.caprica.vlcj.player.base.MediaPlayer;
 import uk.co.caprica.vlcj.player.base.MediaPlayerEventAdapter;
 import uk.co.caprica.vlcj.player.embedded.EmbeddedMediaPlayer;
-
-
+import uk.co.caprica.vlcj.player.base.callback.AudioCallback;
+import uk.co.caprica.vlcj.player.base.callback.AudioCallbackAdapter;
+import com.sun.jna.Pointer;
 
 import javax.swing.*;
+import javax.sound.sampled.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -20,6 +22,7 @@ public class AudioPlayerService {
     private MediaPlayerFactory mediaPlayerFactory;
     private EmbeddedMediaPlayer mediaPlayer;
     private YouTubeMusicService youtubeService;
+    private AudioVisualizerService audioVisualizerService;
 
     private Track currentTrack;
     private List<Track> queue;
@@ -37,6 +40,9 @@ public class AudioPlayerService {
     private boolean equalizerEnabled = false;
     private float preamp = 0.0f;
     private float[] bandAmplitudes = new float[10];
+    private SourceDataLine sourceDataLine;
+    private static final int SAMPLE_RATE = 44100;
+    private static final int BUFFER_SIZE = 4096;
     
     private static final String[] BAND_FREQUENCIES = {
         "60 Hz", "170 Hz", "310 Hz", "600 Hz", "1 kHz",
@@ -77,9 +83,88 @@ public class AudioPlayerService {
         this.isShuffle = false;
         this.listeners = new ArrayList<>();
         
+        setupAudioCallback();
+        
         initializeEqualizer();
 
         setupPlayerListeners();
+    }
+    
+    private void setupAudioCallback() {
+        // Format audio yang kita minta dari VLC (PCM Signed 16-bit Stereo)
+        AudioFormat audioFormat = new AudioFormat(SAMPLE_RATE, 16, 2, true, false);
+        
+        // Siapkan Speaker Output (Java Sound)
+        try {
+            DataLine.Info info = new DataLine.Info(SourceDataLine.class, audioFormat);
+            sourceDataLine = (SourceDataLine) AudioSystem.getLine(info);
+            sourceDataLine.open(audioFormat);
+            sourceDataLine.start();
+        } catch (LineUnavailableException e) {
+            e.printStackTrace();
+        }
+
+        // Pasang Callback ke VLC
+        mediaPlayer.audio().callback(
+            "S16N", // Format PCM 16-bit native endian
+            SAMPLE_RATE,
+            2, // Stereo
+            new AudioCallbackAdapter() {
+                @Override
+                public void play(uk.co.caprica.vlcj.player.base.MediaPlayer mediaPlayer, Pointer samples, int sampleCount, long pts) {
+                    // === [ANTI-CRASH BLOCK START] ===
+                    // Kita bungkus semua logika dalam try-catch agar JNA tidak panic
+                    try {
+                        if (samples == null || sampleCount <= 0) return;
+
+                        // Hitung buffer size (16-bit stereo = 4 bytes per sample)
+                        int bufferLength = sampleCount * 4;
+                        
+                        // Ambil data mentah dari memory VLC
+                        byte[] data = samples.getByteArray(0, bufferLength);
+                        
+                        // 1. Kirim ke Speaker (Java Sound)
+                        if (sourceDataLine != null && sourceDataLine.isOpen()) {
+                            // Write bisa blocking/error kalau buffer penuh, kita bungkus aman
+                            int written = sourceDataLine.write(data, 0, bufferLength);
+                        }
+                        
+                        // 2. Kirim ke Visualizer
+                        if (audioVisualizerService != null) {
+                            float[] floatBuffer = new float[sampleCount]; // Mono mix buffer
+                            
+                            for (int i = 0; i < sampleCount; i++) {
+                                // Konversi byte PCM 16-bit ke float (-1.0 s/d 1.0)
+                                // Data: [Low Byte Left, High Byte Left, Low Byte Right, High Byte Right]
+                                int i4 = i * 4;
+                                
+                                // Cek index bounds untuk keamanan ekstra
+                                if (i4 + 3 >= data.length) break; 
+
+                                // Ambil Left Channel saja untuk visualizer (Simple Mono)
+                                int lb = data[i4] & 0xFF;
+                                int hb = data[i4 + 1];
+                                short val = (short) ((hb << 8) | lb);
+                                
+                                floatBuffer[i] = val / 32768.0f;
+                            }
+                            
+                            // Kirim data float ke service visualizer
+                            audioVisualizerService.processAudioSamples(floatBuffer);
+                        }
+                    } catch (Exception e) {
+                        // === INI YANG PENTING ===
+                        // Cetak error asli ke console agar kita tahu penyebabnya!
+                        System.err.println("🚨 REAL ERROR in AudioCallback: " + e.toString());
+                        e.printStackTrace(); 
+                    }
+                }
+            }
+        );
+    }
+    
+    public void setAudioVisualizerService(AudioVisualizerService service) {
+        this.audioVisualizerService = service;
     }
     
     // Equalizer

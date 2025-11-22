@@ -7,7 +7,6 @@ import com.musicplayer.service.*;
 import com.musicplayer.view.NowPlayingPanel;
 import com.musicplayer.repository.AnalyticsDAO;
 import com.musicplayer.repository.AnalyticsDatabaseManager;
-import com.musicplayer.service.LyricsService;
 
 import java.io.File;
 import java.sql.SQLException;
@@ -27,7 +26,6 @@ public class MusicPlayerController {
     private AnalyticsDAO analyticsDAO;
     private NowPlayingPanel nowPlayingPanel;
     private File tempRecordingFile;
-    private LyricsService lyricsService;
 
     public MusicPlayerController() {
         System.out.println("🔧 Initializing MusicPlayerController...");
@@ -40,7 +38,6 @@ public class MusicPlayerController {
         this.audioPlayerService = new AudioPlayerService();
         this.enrichmentService = new MetadataEnrichmentService();
         this.analyticsDAO = new AnalyticsDAO();
-        this.lyricsService = new LyricsService();
 
         setupPlayerListeners();
 
@@ -527,10 +524,6 @@ public class MusicPlayerController {
             setQueueAndPlay(tracks, trackIndex);
             System.out.println("▶️ Playing from playlist: " + playlist.getName() + " (track " + (trackIndex + 1) + ")");
         }
-    }
-    
-    public LyricsService getLyricsService() {
-        return lyricsService;
     }
 
     public AnalyticsDAO getAnalyticsDAO() {

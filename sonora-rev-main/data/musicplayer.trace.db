@@ -1,0 +1,228 @@
+2025-11-14 18:13:19 jdbc[3]: exception
+java.sql.SQLClientInfoException: Client info name 'ApplicationName' not supported.
+	at org.h2.jdbc.JdbcConnection.setClientInfo(JdbcConnection.java:1573)
+	at org.jkiss.dbeaver.ext.generic.model.GenericDataSource.populateClientAppName(GenericDataSource.java:200)
+	at org.jkiss.dbeaver.ext.generic.model.GenericDataSource.openConnection(GenericDataSource.java:163)
+	at org.jkiss.dbeaver.ext.h2.model.H2DataSource.openConnection(H2DataSource.java:74)
+	at org.jkiss.dbeaver.model.impl.jdbc.JDBCExecutionContext.connect(JDBCExecutionContext.java:124)
+	at org.jkiss.dbeaver.model.impl.jdbc.JDBCRemoteInstance.initializeMainContext(JDBCRemoteInstance.java:106)
+	at org.jkiss.dbeaver.model.impl.jdbc.JDBCRemoteInstance.<init>(JDBCRemoteInstance.java:61)
+	at org.jkiss.dbeaver.model.impl.jdbc.JDBCDataSource.initializeRemoteInstance(JDBCDataSource.java:125)
+	at org.jkiss.dbeaver.ext.generic.model.GenericDataSource.<init>(GenericDataSource.java:125)
+	at org.jkiss.dbeaver.ext.h2.model.H2DataSource.<init>(H2DataSource.java:43)
+	at org.jkiss.dbeaver.ext.h2.model.H2MetaModel.createDataSourceImpl(H2MetaModel.java:56)
+	at org.jkiss.dbeaver.ext.generic.GenericDataSourceProvider.openDataSource(GenericDataSourceProvider.java:57)
+	at org.jkiss.dbeaver.registry.DataSourceDescriptor.openDataSource(DataSourceDescriptor.java:1417)
+	at org.jkiss.dbeaver.registry.DataSourceDescriptor.connect0(DataSourceDescriptor.java:1280)
+	at org.jkiss.dbeaver.registry.DataSourceDescriptor.connect(DataSourceDescriptor.java:1070)
+	at org.jkiss.dbeaver.ui.editors.DatabaseLazyEditorInput.initializeRealInput(DatabaseLazyEditorInput.java:266)
+	at org.jkiss.dbeaver.ui.editors.ProgressEditorPart$InitNodeService.evaluate(ProgressEditorPart.java:173)
+	at org.jkiss.dbeaver.ui.editors.ProgressEditorPart$InitNodeService.evaluate(ProgressEditorPart.java:1)
+	at org.jkiss.dbeaver.ui.LoadingJob.run(LoadingJob.java:88)
+	at org.jkiss.dbeaver.model.runtime.AbstractJob.run(AbstractJob.java:119)
+	at org.eclipse.core.internal.jobs.Worker.run(Worker.java:63)
+2025-11-14 18:13:21 jdbc[3]: exception
+org.h2.jdbc.JdbcSQLSyntaxErrorException: Column "KEY_SEQ" not found [42122-210]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:521)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:496)
+	at org.h2.message.DbException.get(DbException.java:227)
+	at org.h2.message.DbException.get(DbException.java:203)
+	at org.h2.jdbc.JdbcResultSet.getColumnIndex(JdbcResultSet.java:3492)
+	at org.h2.jdbc.JdbcResultSet.getInt(JdbcResultSet.java:337)
+	at org.jkiss.dbeaver.model.impl.jdbc.exec.JDBCResultSetImpl.getInt(JDBCResultSetImpl.java:510)
+	at org.jkiss.dbeaver.model.impl.jdbc.JDBCUtils.safeGetInt(JDBCUtils.java:117)
+	at org.jkiss.dbeaver.ext.generic.model.GenericUtils.safeGetInt(GenericUtils.java:84)
+	at org.jkiss.dbeaver.ext.generic.model.meta.GenericMetaModel.createConstraintColumnsImpl(GenericMetaModel.java:949)
+	at org.jkiss.dbeaver.ext.h2.model.H2MetaModel.createConstraintColumnsImpl(H2MetaModel.java:179)
+	at org.jkiss.dbeaver.ext.generic.model.ConstraintKeysCache.fetchObjectRow(ConstraintKeysCache.java:98)
+	at org.jkiss.dbeaver.ext.generic.model.ConstraintKeysCache.fetchObjectRow(ConstraintKeysCache.java:1)
+	at org.jkiss.dbeaver.model.impl.jdbc.cache.JDBCCompositeCache.loadObjects(JDBCCompositeCache.java:369)
+	at org.jkiss.dbeaver.model.impl.jdbc.cache.JDBCCompositeCache.getObjects(JDBCCompositeCache.java:123)
+	at org.jkiss.dbeaver.ext.generic.model.GenericTableBase.getConstraints(GenericTableBase.java:251)
+	at org.jkiss.dbeaver.ext.generic.model.GenericTableBase.getConstraints(GenericTableBase.java:1)
+	at org.jkiss.dbeaver.model.exec.DBExecUtils.getBestIdentifier(DBExecUtils.java:538)
+	at org.jkiss.dbeaver.model.exec.DBExecUtils.bindAttributes(DBExecUtils.java:875)
+	at org.jkiss.dbeaver.ui.controls.resultset.ResultSetDataReceiver.fetchEnd(ResultSetDataReceiver.java:166)
+	at org.jkiss.dbeaver.model.impl.jdbc.struct.JDBCTable.readData(JDBCTable.java:228)
+	at org.jkiss.dbeaver.ui.controls.resultset.ResultSetJobDataRead.lambda$0(ResultSetJobDataRead.java:128)
+	at org.jkiss.dbeaver.model.exec.DBExecUtils.tryExecuteRecover(DBExecUtils.java:189)
+	at org.jkiss.dbeaver.ui.controls.resultset.ResultSetJobDataRead.run(ResultSetJobDataRead.java:126)
+	at org.jkiss.dbeaver.ui.controls.resultset.ResultSetViewer$ResultSetDataPumpJob.run(ResultSetViewer.java:5146)
+	at org.jkiss.dbeaver.model.runtime.AbstractJob.run(AbstractJob.java:119)
+	at org.eclipse.core.internal.jobs.Worker.run(Worker.java:63)
+2025-11-14 18:14:40 database: flush
+org.h2.message.DbException: General error: "org.h2.mvstore.MVStoreException: The file is locked: C:/Users/ASUS/Documents/Tugas Kuliah/Semester 3/Praktikum Pemrograman Berbasis Objek/Final Project/FinalProject/data/musicplayer.mv.db [2.1.210/7]" [50000-210]
+	at org.h2.message.DbException.get(DbException.java:216)
+	at org.h2.message.DbException.convert(DbException.java:414)
+	at org.h2.mvstore.db.Store.lambda$new$0(Store.java:120)
+	at org.h2.mvstore.MVStore.handleException(MVStore.java:3296)
+	at org.h2.mvstore.MVStore.panic(MVStore.java:585)
+	at org.h2.mvstore.MVStore.<init>(MVStore.java:461)
+	at org.h2.mvstore.MVStore$Builder.open(MVStore.java:4056)
+	at org.h2.mvstore.db.Store.<init>(Store.java:129)
+	at org.h2.engine.Database.<init>(Database.java:324)
+	at org.h2.engine.Engine.openSession(Engine.java:92)
+	at org.h2.engine.Engine.openSession(Engine.java:222)
+	at org.h2.engine.Engine.createSession(Engine.java:201)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:338)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:122)
+	at org.h2.Driver.connect(Driver.java:59)
+	at java.sql/java.sql.DriverManager.getConnection(DriverManager.java:613)
+	at java.sql/java.sql.DriverManager.getConnection(DriverManager.java:199)
+	at com.musicplayer.repository.DatabaseManager.<init>(DatabaseManager.java:22)
+	at com.musicplayer.repository.DatabaseManager.getInstance(DatabaseManager.java:31)
+	at com.musicplayer.controller.MusicPlayerController.<init>(MusicPlayerController.java:32)
+	at com.musicplayer.view.MainFrame.initializeComponents(MainFrame.java:35)
+	at com.musicplayer.view.MainFrame.<init>(MainFrame.java:22)
+	at com.musicplayer.MusicPlayerApp.lambda$0(MusicPlayerApp.java:22)
+	at java.desktop/java.awt.event.InvocationEvent.dispatch(InvocationEvent.java:318)
+	at java.desktop/java.awt.EventQueue.dispatchEventImpl(EventQueue.java:723)
+	at java.desktop/java.awt.EventQueue.dispatchEvent(EventQueue.java:702)
+	at java.desktop/java.awt.EventDispatchThread.pumpOneEventForFilters(EventDispatchThread.java:203)
+	at java.desktop/java.awt.EventDispatchThread.pumpEventsForFilter(EventDispatchThread.java:124)
+	at java.desktop/java.awt.EventDispatchThread.pumpEventsForHierarchy(EventDispatchThread.java:113)
+	at java.desktop/java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:109)
+	at java.desktop/java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:101)
+	at java.desktop/java.awt.EventDispatchThread.run(EventDispatchThread.java:90)
+Caused by: org.h2.jdbc.JdbcSQLNonTransientException: General error: "org.h2.mvstore.MVStoreException: The file is locked: C:/Users/ASUS/Documents/Tugas Kuliah/Semester 3/Praktikum Pemrograman Berbasis Objek/Final Project/FinalProject/data/musicplayer.mv.db [2.1.210/7]" [50000-210]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:573)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:496)
+	... 32 more
+Caused by: org.h2.mvstore.MVStoreException: The file is locked: C:/Users/ASUS/Documents/Tugas Kuliah/Semester 3/Praktikum Pemrograman Berbasis Objek/Final Project/FinalProject/data/musicplayer.mv.db [2.1.210/7]
+	at org.h2.mvstore.DataUtils.newMVStoreException(DataUtils.java:1004)
+	at org.h2.mvstore.FileStore.open(FileStore.java:163)
+	at org.h2.mvstore.MVStore.<init>(MVStore.java:444)
+	... 26 more
+2025-11-14 18:15:44 database: flush
+org.h2.message.DbException: General error: "org.h2.mvstore.MVStoreException: The file is locked: C:/Users/ASUS/Documents/Tugas Kuliah/Semester 3/Praktikum Pemrograman Berbasis Objek/Final Project/FinalProject/data/musicplayer.mv.db [2.1.210/7]" [50000-210]
+	at org.h2.message.DbException.get(DbException.java:216)
+	at org.h2.message.DbException.convert(DbException.java:414)
+	at org.h2.mvstore.db.Store.lambda$new$0(Store.java:120)
+	at org.h2.mvstore.MVStore.handleException(MVStore.java:3296)
+	at org.h2.mvstore.MVStore.panic(MVStore.java:585)
+	at org.h2.mvstore.MVStore.<init>(MVStore.java:461)
+	at org.h2.mvstore.MVStore$Builder.open(MVStore.java:4056)
+	at org.h2.mvstore.db.Store.<init>(Store.java:129)
+	at org.h2.engine.Database.<init>(Database.java:324)
+	at org.h2.engine.Engine.openSession(Engine.java:92)
+	at org.h2.engine.Engine.openSession(Engine.java:222)
+	at org.h2.engine.Engine.createSession(Engine.java:201)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:338)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:122)
+	at org.h2.Driver.connect(Driver.java:59)
+	at java.sql/java.sql.DriverManager.getConnection(DriverManager.java:613)
+	at java.sql/java.sql.DriverManager.getConnection(DriverManager.java:199)
+	at com.musicplayer.repository.DatabaseManager.<init>(DatabaseManager.java:22)
+	at com.musicplayer.repository.DatabaseManager.getInstance(DatabaseManager.java:31)
+	at com.musicplayer.controller.MusicPlayerController.<init>(MusicPlayerController.java:32)
+	at com.musicplayer.view.MainFrame.initializeComponents(MainFrame.java:35)
+	at com.musicplayer.view.MainFrame.<init>(MainFrame.java:22)
+	at com.musicplayer.MusicPlayerApp.lambda$0(MusicPlayerApp.java:22)
+	at java.desktop/java.awt.event.InvocationEvent.dispatch(InvocationEvent.java:318)
+	at java.desktop/java.awt.EventQueue.dispatchEventImpl(EventQueue.java:723)
+	at java.desktop/java.awt.EventQueue.dispatchEvent(EventQueue.java:702)
+	at java.desktop/java.awt.EventDispatchThread.pumpOneEventForFilters(EventDispatchThread.java:203)
+	at java.desktop/java.awt.EventDispatchThread.pumpEventsForFilter(EventDispatchThread.java:124)
+	at java.desktop/java.awt.EventDispatchThread.pumpEventsForHierarchy(EventDispatchThread.java:113)
+	at java.desktop/java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:109)
+	at java.desktop/java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:101)
+	at java.desktop/java.awt.EventDispatchThread.run(EventDispatchThread.java:90)
+Caused by: org.h2.jdbc.JdbcSQLNonTransientException: General error: "org.h2.mvstore.MVStoreException: The file is locked: C:/Users/ASUS/Documents/Tugas Kuliah/Semester 3/Praktikum Pemrograman Berbasis Objek/Final Project/FinalProject/data/musicplayer.mv.db [2.1.210/7]" [50000-210]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:573)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:496)
+	... 32 more
+Caused by: org.h2.mvstore.MVStoreException: The file is locked: C:/Users/ASUS/Documents/Tugas Kuliah/Semester 3/Praktikum Pemrograman Berbasis Objek/Final Project/FinalProject/data/musicplayer.mv.db [2.1.210/7]
+	at org.h2.mvstore.DataUtils.newMVStoreException(DataUtils.java:1004)
+	at org.h2.mvstore.FileStore.open(FileStore.java:163)
+	at org.h2.mvstore.MVStore.<init>(MVStore.java:444)
+	... 26 more
+2025-11-14 20:20:40 database: close
+org.h2.message.DbException: IO Exception: "Closing" [90028-210]
+	at org.h2.message.DbException.get(DbException.java:216)
+	at org.h2.mvstore.db.Store.close(Store.java:371)
+	at org.h2.engine.Database.closeOpenFilesAndUnlock(Database.java:1281)
+	at org.h2.engine.Database.closeImpl(Database.java:1234)
+	at org.h2.engine.Database.close(Database.java:1144)
+	at org.h2.engine.OnExitDatabaseCloser.onShutdown(OnExitDatabaseCloser.java:85)
+	at org.h2.engine.OnExitDatabaseCloser.run(OnExitDatabaseCloser.java:114)
+Caused by: org.h2.jdbc.JdbcSQLNonTransientException: IO Exception: "Closing" [90028-210]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:573)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:496)
+	... 7 more
+Caused by: org.h2.mvstore.MVStoreException: java.lang.NoClassDefFoundError: org/h2/mvstore/Chunk$PositionComparator [2.1.210/3]
+	at org.h2.mvstore.DataUtils.newMVStoreException(DataUtils.java:1004)
+	at org.h2.mvstore.MVStore.compactMoveChunks(MVStore.java:2051)
+	at org.h2.mvstore.MVStore.compactFile(MVStore.java:2281)
+	at org.h2.mvstore.MVStore.closeStore(MVStore.java:1316)
+	at org.h2.mvstore.MVStore.close(MVStore.java:1279)
+	at org.h2.mvstore.db.Store.close(Store.java:354)
+	... 5 more
+Caused by: java.lang.NoClassDefFoundError: org/h2/mvstore/Chunk$PositionComparator
+	at org.h2.mvstore.MVStore.findChunksToMove(MVStore.java:2102)
+	at org.h2.mvstore.MVStore.compactMoveChunks(MVStore.java:2063)
+	at org.h2.mvstore.MVStore.compactMoveChunks(MVStore.java:2040)
+	... 9 more
+Caused by: java.lang.ClassNotFoundException: org.h2.mvstore.Chunk$PositionComparator
+	at org.codehaus.mojo.exec.URLClassLoaderBuilder$ExecJavaClassLoader.loadClass(URLClassLoaderBuilder.java:211)
+	at java.base/java.lang.ClassLoader.loadClass(ClassLoader.java:490)
+	... 12 more
+2025-11-14 20:35:56 database: close
+org.h2.message.DbException: IO Exception: "Closing" [90028-210]
+	at org.h2.message.DbException.get(DbException.java:216)
+	at org.h2.mvstore.db.Store.close(Store.java:371)
+	at org.h2.engine.Database.closeOpenFilesAndUnlock(Database.java:1281)
+	at org.h2.engine.Database.closeImpl(Database.java:1234)
+	at org.h2.engine.Database.close(Database.java:1144)
+	at org.h2.engine.OnExitDatabaseCloser.onShutdown(OnExitDatabaseCloser.java:85)
+	at org.h2.engine.OnExitDatabaseCloser.run(OnExitDatabaseCloser.java:114)
+Caused by: org.h2.jdbc.JdbcSQLNonTransientException: IO Exception: "Closing" [90028-210]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:573)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:496)
+	... 7 more
+Caused by: org.h2.mvstore.MVStoreException: java.lang.NoClassDefFoundError: org/h2/mvstore/Chunk$PositionComparator [2.1.210/3]
+	at org.h2.mvstore.DataUtils.newMVStoreException(DataUtils.java:1004)
+	at org.h2.mvstore.MVStore.compactMoveChunks(MVStore.java:2051)
+	at org.h2.mvstore.MVStore.compactFile(MVStore.java:2281)
+	at org.h2.mvstore.MVStore.closeStore(MVStore.java:1316)
+	at org.h2.mvstore.MVStore.close(MVStore.java:1279)
+	at org.h2.mvstore.db.Store.close(Store.java:354)
+	... 5 more
+Caused by: java.lang.NoClassDefFoundError: org/h2/mvstore/Chunk$PositionComparator
+	at org.h2.mvstore.MVStore.findChunksToMove(MVStore.java:2102)
+	at org.h2.mvstore.MVStore.compactMoveChunks(MVStore.java:2063)
+	at org.h2.mvstore.MVStore.compactMoveChunks(MVStore.java:2040)
+	... 9 more
+Caused by: java.lang.ClassNotFoundException: org.h2.mvstore.Chunk$PositionComparator
+	at org.codehaus.mojo.exec.URLClassLoaderBuilder$ExecJavaClassLoader.loadClass(URLClassLoaderBuilder.java:211)
+	at java.base/java.lang.ClassLoader.loadClass(ClassLoader.java:490)
+	... 12 more
+2025-11-14 20:37:10 database: close
+org.h2.message.DbException: IO Exception: "Closing" [90028-210]
+	at org.h2.message.DbException.get(DbException.java:216)
+	at org.h2.mvstore.db.Store.close(Store.java:371)
+	at org.h2.engine.Database.closeOpenFilesAndUnlock(Database.java:1281)
+	at org.h2.engine.Database.closeImpl(Database.java:1234)
+	at org.h2.engine.Database.close(Database.java:1144)
+	at org.h2.engine.OnExitDatabaseCloser.onShutdown(OnExitDatabaseCloser.java:85)
+	at org.h2.engine.OnExitDatabaseCloser.run(OnExitDatabaseCloser.java:114)
+Caused by: org.h2.jdbc.JdbcSQLNonTransientException: IO Exception: "Closing" [90028-210]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:573)
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:496)
+	... 7 more
+Caused by: org.h2.mvstore.MVStoreException: java.lang.NoClassDefFoundError: org/h2/mvstore/Chunk$PositionComparator [2.1.210/3]
+	at org.h2.mvstore.DataUtils.newMVStoreException(DataUtils.java:1004)
+	at org.h2.mvstore.MVStore.compactMoveChunks(MVStore.java:2051)
+	at org.h2.mvstore.MVStore.compactFile(MVStore.java:2281)
+	at org.h2.mvstore.MVStore.closeStore(MVStore.java:1316)
+	at org.h2.mvstore.MVStore.close(MVStore.java:1279)
+	at org.h2.mvstore.db.Store.close(Store.java:354)
+	... 5 more
+Caused by: java.lang.NoClassDefFoundError: org/h2/mvstore/Chunk$PositionComparator
+	at org.h2.mvstore.MVStore.findChunksToMove(MVStore.java:2102)
+	at org.h2.mvstore.MVStore.compactMoveChunks(MVStore.java:2063)
+	at org.h2.mvstore.MVStore.compactMoveChunks(MVStore.java:2040)
+	... 9 more
+Caused by: java.lang.ClassNotFoundException: org.h2.mvstore.Chunk$PositionComparator
+	at org.codehaus.mojo.exec.URLClassLoaderBuilder$ExecJavaClassLoader.loadClass(URLClassLoaderBuilder.java:211)
+	at java.base/java.lang.ClassLoader.loadClass(ClassLoader.java:490)
+	... 12 more
